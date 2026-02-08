@@ -78,6 +78,12 @@ export default function Auth({ onLogin, theme, onThemeChange }) {
         // Также сохраняем профиль отдельно для быстрого доступа
         localStorage.setItem(`qs_user_${newUser.id}`, JSON.stringify(newUser))
         
+        // Debug: Проверяем что сохранилось
+        console.log('✓ [AUTH] Пользователь зарегистрирован:', newUser.email)
+        console.log('  Сохранено в qs_users:', users.length, 'всего')
+        console.log('  Сохранено ключ:', `qs_user_${newUser.id}`)
+        console.log('  Проверка:', JSON.parse(localStorage.getItem(`qs_user_${newUser.id}`)))
+        
         setTimeout(() => {
           onLogin({
             id: newUser.id,
@@ -90,9 +96,14 @@ export default function Auth({ onLogin, theme, onThemeChange }) {
       } else {
         // Login - проверяем сохранённые данные
         const users = JSON.parse(localStorage.getItem('qs_users') || '[]')
+        console.log('? [AUTH] Попытка входа:', email)
+        console.log('  Пользователей в qs_users:', users.length)
+        users.forEach(u => console.log('    -', u.email))
+        
         const user = users.find(u => u.email === email && u.password === password)
 
         if (!user) {
+          console.error('❌ [AUTH] Вход не удался:', email)
           setError('Неверные email или пароль')
           setLoading(false)
           return
@@ -100,6 +111,8 @@ export default function Auth({ onLogin, theme, onThemeChange }) {
 
         // Убедимся что данные сохранены как профиль
         localStorage.setItem(`qs_user_${user.id}`, JSON.stringify(user))
+        console.log('✓ [AUTH] Вход успешен:', email)
+        console.log('  ID пользователя:', user.id)
 
         setTimeout(() => {
           onLogin({

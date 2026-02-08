@@ -14,11 +14,21 @@ export default function App() {
     // Delay to ensure styles are loaded
     setTimeout(() => {
       const stored = localStorage.getItem('qs_user')
+      console.log('=== [APP] ИНИЦИАЛИЗАЦИЯ ===')
+      console.log('localStorage.getItem("qs_user"):', stored ? 'найден' : 'не найден')
+      
+      // Проверяем сколько пользователей зарегистрировано
+      const users = JSON.parse(localStorage.getItem('qs_users') || '[]')
+      console.log('Всего зарегистрировано пользователей:', users.length)
+      users.forEach(u => console.log('  -', u.email))
+      
       if (stored) {
         try {
-          setUser(JSON.parse(stored))
+          const userData = JSON.parse(stored)
+          console.log('✓ Текущий пользователь:', userData.email)
+          setUser(userData)
         } catch (e) {
-          console.error('Failed to parse stored user:', e)
+          console.error('❌ Failed to parse stored user:', e)
         }
       }
       setLoading(false)

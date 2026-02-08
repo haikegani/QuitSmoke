@@ -7,83 +7,64 @@ export default function Friends({ user = {}, onStartChat = () => {} }) {
   const [allUsers, setAllUsers] = useState([])
   const [selectedUser, setSelectedUser] = useState(null)
   const [searchMode, setSearchMode] = useState('username')
+  const [debugInfo, setDebugInfo] = useState('Инициализация...')
 
   useEffect(() => {
-    if (!user || !user.id) return
+    console.log('✓ Friends компонент загружен')
+    console.log('Текущий пользователь:', user)
+    
+    if (!user || !user.id) {
+      console.log('❌ Нет user или user.id')
+      return
+    }
     
     // Загрузить всех зарегистрированных пользователей
     const users = []
     
+    console.log('=== ПОИСК ПОЛЬЗОВАТЕЛЕЙ ===')
+    console.log('localStorage.length:', localStorage.length)
+    
     // Ищем в qs_user_ префиксе
+    console.log('Ищу qs_user_* ключи...')
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)
       if (key && key.startsWith('qs_user_')) {
         try {
           const userData = JSON.parse(localStorage.getItem(key))
+          console.log('  Найден:', key, userData.email)
           if (userData && userData.id !== user.id && userData.email) {
             users.push(userData)
+            console.log('    ✓ Добавлен в список')
           }
         } catch (e) {
-          console.error('Error parsing user:', key, e)
+          console.error('  ❌ Ошибка при парсинге:', key, e)
         }
       }
     }
     
     // Также ищем в qs_users массиве (на случай если там хранятся)
+    console.log('Ищу qs_users...')
     try {
-      const allUsers = JSON.parse(localStorage.getItem('qs_users') || '[]')
-      if (Array.isArray(allUsers)) {
-        allUsers.forEach(u => {
+      const allUsersData = JSON.parse(localStorage.getItem('qs_users') || '[]')
+      console.log('  qs_users найден, пользователей:', allUsersData.length)
+      if (Array.isArray(allUsersData)) {
+        allUsersData.forEach(u => {
           if (u && u.id !== user.id && u.email && !users.find(x => x.id === u.id)) {
+            console.log('  ✓ Добавлен:', u.email)
             users.push(u)
           }
         })
       }
     } catch (e) {
-      console.error('Error loading qs_users:', e)
+      console.error('  ❌ Ошибка qs_users:', e)
     }
     
-    console.log('Loaded users:', users.length)
+    console.log('=== ИТОГО ===')
+    console.log('Загружено пользователей:', users.length)
+    users.forEach(u => console.log('  -', u.email))
+    
+    setDebugInfo(`Загружено: ${users.length} пользователей`)
     setAllUsers(users)
-  }, [user?.id])
-
-  // Проверяем наличие новых пользователей каждые секунду
-  useEffect(() => {
-    if (!user || !user.id) return
-    
-    const interval = setInterval(() => {
-      const users = []
-      const loadedIds = new Set()
-      
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (key && key.startsWith('qs_user_')) {
-          try {
-            const userData = JSON.parse(localStorage.getItem(key))
-            if (userData && userData.id !== user.id && userData.email && !loadedIds.has(userData.id)) {
-              users.push(userData)
-              loadedIds.add(userData.id)
-            }
-          } catch (e) {}
-        }
-      }
-      
-      try {
-        const allUsers = JSON.parse(localStorage.getItem('qs_users') || '[]')
-        if (Array.isArray(allUsers)) {
-          allUsers.forEach(u => {
-            if (u && u.id !== user.id && u.email && !loadedIds.has(u.id)) {
-              users.push(u)
-              loadedIds.add(u.id)
-            }
-          })
-        }
-      } catch (e) {}
-      
-      setAllUsers(users)
-    }, 1000)
-    
-    return () => clearInterval(interval)
   }, [user?.id])
 
   const handleSearch = (query) => {
