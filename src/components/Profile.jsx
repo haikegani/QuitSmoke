@@ -15,8 +15,11 @@ export default function Profile({ user, onLogout, onUpdateUser, quitPlan, onUpda
   }
 
   const handleSavePlan = (newPlan) => {
+    console.log('handleSavePlan called with:', newPlan)
+    console.log('onUpdatePlan is:', onUpdatePlan)
     onUpdatePlan(newPlan)
     localStorage.setItem(`qs_plan_${user.id}`, JSON.stringify(newPlan))
+    setPlan(newPlan)
     setShowQuitPlan(false)
   }
 

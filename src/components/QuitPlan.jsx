@@ -100,6 +100,55 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
 
   const product = PRODUCT_TYPES[productType]
 
+  // Функция расчёта плана - ДОЛЖНА БЫТЬ В НАЧАЛЕ
+  const calculatePlan = () => {
+    const dailyReduction = formData.goal === 'quit'
+      ? Math.ceil(formData.currentDaily / 30)
+      : Math.ceil((formData.currentDaily * formData.reductionTarget / 100) / 30)
+
+    const stressLevel = formData.yearsConsuming * 10
+
+    let advice = 'Отлично, что ты решил(а) бросить! 💪'
+    if (stressLevel > 50) {
+      advice += ' У тебя большой стаж, но это означает, что ты сильный(ая) человек. Упражнения помогут.'
+    }
+    if (formData.currentDaily > product.defaultDaily * 2) {
+      advice += ' Начни с небольших шагов - медленно, но уверенно!'
+    }
+
+    const milestones = []
+    let currentDay = 0
+    let currentAmount = formData.currentDaily
+
+    while (currentAmount > (formData.goal === 'quit' ? 0 : formData.currentDaily * (100 - formData.reductionTarget) / 100)) {
+      currentDay += 7
+      currentAmount = Math.max(
+        formData.goal === 'quit' ? 0 : formData.currentDaily * (100 - formData.reductionTarget) / 100,
+        formData.currentDaily - (dailyReduction * (currentDay / 7))
+      )
+      const date = new Date()
+      date.setDate(date.getDate() + currentDay)
+      milestones.push({
+        day: currentDay,
+        amount: Math.ceil(Math.max(0, currentAmount)),
+        date: date.toLocaleDateString('ru-RU', { month: 'short', day: 'numeric' })
+      })
+
+      if (milestones.length >= 12) break
+    }
+
+    return {
+      ...formData,
+      productType,
+      product,
+      dailyReduction,
+      advice,
+      completionDays: Math.ceil(formData.currentDaily / dailyReduction),
+      milestones: milestones.slice(0, 8),
+      createdAt: new Date().toISOString()
+    }
+  }
+
   // Шаг 1: Выбор типа продукта
   if (step === 0) {
     return (
@@ -459,9 +508,14 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
           <button
             className="btn-next glass"
             onClick={() => {
-              const plan = calculatePlan()
-              setCalculatedPlan(plan)
-              setStep(4)
+              try {
+                const plan = calculatePlan()
+                console.log('Plan calculated:', plan)
+                setCalculatedPlan(plan)
+                setStep(4)
+              } catch (e) {
+                console.error('Error calculating plan:', e)
+              }
             }}
           >
             Создать план →
@@ -469,55 +523,6 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
         </div>
       </div>
     )
-  }
-
-  // Функция расчёта плана
-  const calculatePlan = () => {
-    const dailyReduction = formData.goal === 'quit'
-      ? Math.ceil(formData.currentDaily / 30)
-      : Math.ceil((formData.currentDaily * formData.reductionTarget / 100) / 30)
-
-    const stressLevel = formData.yearsConsuming * 10
-
-    let advice = 'Отлично, что ты решил(а) бросить! 💪'
-    if (stressLevel > 50) {
-      advice += ' У тебя большой стаж, но это означает, что ты сильный(ая) человек. Упражнения помогут.'
-    }
-    if (formData.currentDaily > product.defaultDaily * 2) {
-      advice += ' Начни с небольших шагов - медленно, но уверенно!'
-    }
-
-    const milestones = []
-    let currentDay = 0
-    let currentAmount = formData.currentDaily
-
-    while (currentAmount > (formData.goal === 'quit' ? 0 : formData.currentDaily * (100 - formData.reductionTarget) / 100)) {
-      currentDay += 7
-      currentAmount = Math.max(
-        formData.goal === 'quit' ? 0 : formData.currentDaily * (100 - formData.reductionTarget) / 100,
-        formData.currentDaily - (dailyReduction * (currentDay / 7))
-      )
-      const date = new Date()
-      date.setDate(date.getDate() + currentDay)
-      milestones.push({
-        day: currentDay,
-        amount: Math.ceil(Math.max(0, currentAmount)),
-        date: date.toLocaleDateString('ru-RU', { month: 'short', day: 'numeric' })
-      })
-
-      if (milestones.length >= 12) break
-    }
-
-    return {
-      ...formData,
-      productType,
-      product,
-      dailyReduction,
-      advice,
-      completionDays: Math.ceil(formData.currentDaily / dailyReduction),
-      milestones: milestones.slice(0, 8),
-      createdAt: new Date().toISOString()
-    }
   }
 
   // Финальный план
@@ -571,9 +576,15 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
             <button
               className="btn-save glass"
               onClick={() => {
-                onSavePlan(calculatedPlan)
-                setSaved(true)
-                setTimeout(() => setSaved(false), 2000)
+                console.log('Save clicked, calculatedPlan:', calculatedPlan)
+                console.log('onSavePlan function:', onSavePlan)
+                if (onSavePlan) {
+                  onSavePlan(calculatedPlan)
+                  setSaved(true)
+                  setTimeout(() => setSaved(false), 2000)
+                } else {
+                  console.error('onSavePlan is not a function!')
+                }
               }}
             >
               💾 Сохранить план
