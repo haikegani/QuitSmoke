@@ -45,6 +45,12 @@ export default function App() {
     localStorage.removeItem('qs_user')
   }
 
+  const handleUpdateUser = (updatedUserData) => {
+    const updated = { ...user, ...updatedUserData }
+    setUser(updated)
+    localStorage.setItem('qs_user', JSON.stringify(updated))
+  }
+
   const handleThemeChange = (newTheme) => {
     setTheme(newTheme)
     localStorage.setItem('qs_theme', newTheme)
@@ -61,7 +67,7 @@ export default function App() {
       {!user ? (
         <Auth onLogin={handleLogin} theme={theme} onThemeChange={handleThemeChange} />
       ) : (
-        <MainApp user={user} onLogout={handleLogout} theme={theme} onThemeChange={handleThemeChange} />
+        <MainApp user={user} onLogout={handleLogout} theme={theme} onThemeChange={handleThemeChange} onUpdateUser={handleUpdateUser} />
       )}
     </div>
   )

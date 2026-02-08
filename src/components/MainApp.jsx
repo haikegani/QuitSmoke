@@ -2,9 +2,10 @@ import React, { useState, useMemo } from 'react'
 import Feed from './Feed'
 import Friends from './Friends'
 import Profile from './Profile'
+import Posts from './Posts'
 import './MainApp.css'
 
-export default function MainApp({ user, onLogout, theme, onThemeChange }) {
+export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdateUser }) {
   const [activeTab, setActiveTab] = useState('feed')
   const [friends, setFriends] = useState(() => {
     const stored = localStorage.getItem(`qs_friends_${user.id}`)
@@ -102,6 +103,12 @@ export default function MainApp({ user, onLogout, theme, onThemeChange }) {
           🔥 Лента
         </button>
         <button
+          className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`}
+          onClick={() => setActiveTab('posts')}
+        >
+          💬 Посты
+        </button>
+        <button
           className={`tab-btn ${activeTab === 'friends' ? 'active' : ''}`}
           onClick={() => setActiveTab('friends')}
         >
@@ -125,6 +132,9 @@ export default function MainApp({ user, onLogout, theme, onThemeChange }) {
             onUpdatePlan={setQuitPlan}
           />
         )}
+        {activeTab === 'posts' && (
+          <Posts user={user} friends={friends} />
+        )}
         {activeTab === 'friends' && (
           <Friends
             friends={friends}
@@ -139,6 +149,7 @@ export default function MainApp({ user, onLogout, theme, onThemeChange }) {
             quitPlan={quitPlan}
             onUpdatePlan={setQuitPlan}
             puffCount={puffCount}
+            onUpdateUser={onUpdateUser}
           />
         )}
       </main>
