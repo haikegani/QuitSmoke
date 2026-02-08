@@ -7,10 +7,18 @@ import Posts from './Posts'
 import Channels from './Channels'
 import Chats from './Chats'
 import Settings from './Settings'
+import Debug from './Debug'
 import './MainApp.css'
 
 export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdateUser }) {
-  const [activeTab, setActiveTab] = useState('feed')
+  const [activeTab, setActiveTab] = useState(() => {
+    const isDebugEnabled = localStorage.getItem('qs_debug') === 'true'
+    if (isDebugEnabled) {
+      localStorage.removeItem('qs_debug')
+      return 'debug'
+    }
+    return 'feed'
+  })
   const [sidebarOpen, setSidebarOpen] = useState(false)
   
   const [puffCount, setPuffCount] = useState(() => {
@@ -117,6 +125,9 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
             theme={theme}
             onThemeChange={onThemeChange}
           />
+        )}
+        {activeTab === 'debug' && (
+          <Debug />
         )}
       </main>
     </div>

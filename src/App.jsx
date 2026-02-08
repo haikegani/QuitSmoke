@@ -36,6 +36,15 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    // Make debug function available globally
+    window.openDebug = () => {
+      localStorage.setItem('qs_debug', 'true')
+      window.location.reload()
+    }
+    console.log('💡 Чтобы открыть DEBUG панель, введи: window.openDebug()')
+  }, [])
+
+  useEffect(() => {
     const root = document.documentElement
     if (theme === 'auto') {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
