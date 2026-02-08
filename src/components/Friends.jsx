@@ -1,13 +1,21 @@
 import React, { useState, useEffect } from 'react'
 import './Friends.css'
 
-export default function Friends({ friends, onAddFriend, onRemoveFriend, user }) {
+export default function Friends({ 
+  friends = [], 
+  onAddFriend, 
+  onRemoveFriend, 
+  user 
+}) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [allUsers, setAllUsers] = useState([])
   const [searchMode, setSearchMode] = useState('username')
+  
+  // Убедимся, что friends - это массив
+  const friendsList = Array.isArray(friends) ? friends : []
 
   useEffect(() => {
     // Загрузить всех зарегистрированных пользователей
@@ -48,19 +56,28 @@ export default function Friends({ friends, onAddFriend, onRemoveFriend, user }) 
       } else {
         return email.includes(q)
       }
-    }).filter(u => !friends.find(f => f.email === u.email))
+    }).filter(u => !friendsList.find(f => f.email === u.email))
 
     setSearchResults(results)
   }
 
   const handleAdd = (foundUser) => {
-    if (friends.find(f => f.email === foundUser.email)) {
+    if (friendsList.find(f => f.email === foundUser.email)) {
       setError('Этот пользователь уже в друзьях')
       setTimeout(() => setError(''), 3000)
       return
     }
 
-    onAddFriend(foundUser.email)
+    // Передаём полный объект пользователя
+    onAddFriend({
+      id: foundUser.id,
+      email: foundUser.email,
+      name: foundUser.username || foundUser.email.split('@')[0],
+      username: foundUser.username,
+      avatar: foundUser.avatar,
+      avatarColor: foundUser.avatarColor,
+      addedAt: new Date().toISOString()
+    })
     setSearchQuery('')
     setSearchResults([])
     setSuccess(`${foundUser.username || foundUser.email.split('@')[0]} добавлен в друзья! 🎉`)
@@ -150,9 +167,9 @@ export default function Friends({ friends, onAddFriend, onRemoveFriend, user }) 
       </div>
 
       <div className="friends-list">
-        <h2>🤝 Мои друзья ({friends.length})</h2>
+        <h2>🤝 Мои друзья ({friendsList.length})</h2>
 
-        {friends.length === 0 ? (
+        {friendsList.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">🤔</div>
             <p>У тебя еще нет друзей</p>
@@ -160,19 +177,29 @@ export default function Friends({ friends, onAddFriend, onRemoveFriend, user }) 
           </div>
         ) : (
           <div className="friends-grid">
-            {friends.map((friend) => (
+            {friendsList.map((friend) => (
               <div key={friend.id} className="friend-card glass">
-                <div
-                  className="friend-avatar"
-                  style={{
-                    background: `linear-gradient(135deg, ${
-                      friend.avatarColor || '#667eea'
-                    }, ${friend.avatarColor || '#667eea'}dd)`
-                  }}
-                >
-                  {(friend.name || friend.email.split('@')[0])
-                    .slice(0, 2)
-                    .toUpperCase()}
+                <div className="friend-avatar">
+                  {friend.avatar ? (
+                    <img 
+                      src={friend.avatar} 
+                      alt={friend.name || friend.email}
+                      className="avatar-image"
+                    />
+                  ) : (
+                    <div
+                      className="avatar-fallback"
+                      style={{
+                        background: `linear-gradient(135deg, ${
+                          friend.avatarColor || '#667eea'
+                        }, ${friend.avatarColor || '#667eea'}dd)`
+                      }}
+                    >
+                      {(friend.name || friend.email.split('@')[0])
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </div>
+                  )}
                 </div>
                 <div className="friend-name">
                   {friend.name || friend.email.split('@')[0]}

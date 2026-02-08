@@ -399,3 +399,30 @@
     border-radius: 12px;
   }
 }
+
+/* Create Plan Button */
+.create-plan-btn {
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.create-plan-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.back-to-profile {
+  backdrop-filter: blur(10px) !important;
+}
+
+.back-to-profile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}

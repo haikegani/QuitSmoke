@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
+import QuitPlan from './QuitPlan'
 import './Profile.css'
 
 export default function Profile({ user, onLogout, onUpdateUser, quitPlan, onUpdatePlan, puffCount }) {
   const [isEditing, setIsEditing] = useState(false)
+  const [showQuitPlan, setShowQuitPlan] = useState(false)
   const [username, setUsername] = useState(user.username || '')
   const [bio, setBio] = useState(user.bio || '')
   const [plan, setPlan] = useState(quitPlan)
@@ -12,13 +14,45 @@ export default function Profile({ user, onLogout, onUpdateUser, quitPlan, onUpda
     setIsEditing(false)
   }
 
-  const handleSavePlan = () => {
-    onUpdatePlan(plan)
-    localStorage.setItem(`qs_plan_${user.id}`, JSON.stringify(plan))
+  const handleSavePlan = (newPlan) => {
+    onUpdatePlan(newPlan)
+    localStorage.setItem(`qs_plan_${user.id}`, JSON.stringify(newPlan))
+    setShowQuitPlan(false)
   }
 
   const totalPuffs = Object.values(puffCount).reduce((a, b) => a + b, 0)
   const dayCount = Object.keys(puffCount).length
+
+  if (showQuitPlan) {
+    return (
+      <div>
+        <QuitPlan
+          user={user}
+          existingPlan={plan}
+          onSavePlan={handleSavePlan}
+        />
+        <button 
+          className="back-to-profile glass"
+          onClick={() => setShowQuitPlan(false)}
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            padding: '10px 16px',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            zIndex: 100
+          }}
+        >
+          ← Вернуться
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="profile-container">
@@ -83,9 +117,9 @@ export default function Profile({ user, onLogout, onUpdateUser, quitPlan, onUpda
 
       <div className="plan-card glass">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h3>🎯 План отказа</h3>
-          <button className="mini-btn" onClick={() => setIsEditing(!isEditing)}>
-            {isEditing ? '✓' : '✎'}
+          <h3>🎯 Персональный план</h3>
+          <button className="create-plan-btn" onClick={() => setShowQuitPlan(true)}>
+            + Новый план
           </button>
         </div>
 

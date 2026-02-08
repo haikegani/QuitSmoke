@@ -352,3 +352,22 @@
     padding: 8px;
   }
 }
+
+/* Avatar Support - Image and Fallback */
+.friend-avatar .avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.friend-avatar .avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 32px;
+  color: white;
+}

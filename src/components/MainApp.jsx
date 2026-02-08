@@ -31,18 +31,12 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
     }
   })
 
-  const addFriend = (input) => {
-    if (friends.find(f => f.email === input)) {
+  const addFriend = (friendObj) => {
+    if (friends.find(f => f.email === friendObj.email)) {
       alert('Этот друг уже добавлен')
       return
     }
-    const newFriend = {
-      id: Date.now().toString(),
-      email: input,
-      name: input.includes('@') ? input.split('@')[0] : input,
-      addedAt: new Date().toISOString()
-    }
-    const updated = [...friends, newFriend]
+    const updated = [...friends, friendObj]
     setFriends(updated)
     localStorage.setItem(`qs_friends_${user.id}`, JSON.stringify(updated))
   }

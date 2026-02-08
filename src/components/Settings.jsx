@@ -1,32 +1,63 @@
 import React, { useState } from 'react'
 import './Settings.css'
 
-export default function Settings({ user, onUpdateUser, theme, onThemeChange }) {
+export default function Settings({ user, onUpdateUser, theme, onThemeChange, onLogout }) {
   const [username, setUsername] = useState(user.username || '')
   const [bio, setBio] = useState(user.bio || '')
   const [avatarColor, setAvatarColor] = useState(user.avatarColor || '#667eea')
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState(user.avatar || null)
   const [isSaving, setIsSaving] = useState(false)
+  const [success, setSuccess] = useState('')
 
   const avatarColors = [
     '#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe',
     '#43e97b', '#38f9d7', '#fa709a', '#fee140', '#30b0fe'
   ]
 
+  const handleAvatarFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 1024 * 1024) { // 1MB max
+        alert('Файл слишком большой (максимум 1MB)')
+        return
+      }
+      setAvatarFile(file)
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        setAvatarPreview(event.target?.result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
   const handleSave = () => {
     setIsSaving(true)
     setTimeout(() => {
-      onUpdateUser({
+      const updates = {
         username: username.trim(),
         bio: bio.trim(),
-        avatarColor
-      })
+        avatarColor,
+        avatar: avatarPreview
+      }
+      onUpdateUser(updates)
+      setSuccess('Профиль обновлён! ✨')
+      setTimeout(() => setSuccess(''), 3000)
       setIsSaving(false)
     }, 300)
   }
 
   const handleThemeChange = (newTheme) => {
-    const next = newTheme === 'auto' ? 'dark' : (newTheme === 'dark' ? 'light' : 'auto')
-    onThemeChange(next)
+    const themes = ['light', 'dark', 'auto']
+    const currentIndex = themes.indexOf(theme || 'auto')
+    const nextTheme = themes[(currentIndex + 1) % themes.length]
+    onThemeChange(nextTheme)
+  }
+
+  const themeLabels = {
+    light: '☀️ Светлая',
+    dark: '🌙 Тёмная',
+    auto: '🔄 Авто'
   }
 
   return (
@@ -35,6 +66,8 @@ export default function Settings({ user, onUpdateUser, theme, onThemeChange }) {
         <h1>⚙️ Настройки</h1>
         <p>Управляй своим профилем и предпочтениями</p>
       </div>
+
+      {success && <div className="success-notification">{success}</div>}
 
       {/* Profile Settings */}
       <div className="settings-section glass">
@@ -67,7 +100,52 @@ export default function Settings({ user, onUpdateUser, theme, onThemeChange }) {
         </div>
 
         <div className="setting-item">
-          <label>Цвет аватара</label>
+          <label>Аватар</label>
+          <div className="avatar-upload-section">
+            <div className="avatar-preview-container">
+              {avatarPreview ? (
+                <img 
+                  src={avatarPreview} 
+                  alt="Preview" 
+                  className="avatar-preview-image"
+                />
+              ) : (
+                <div
+                  className="avatar-preview-fallback"
+                  style={{ background: `linear-gradient(135deg, ${avatarColor}, ${avatarColor}dd)` }}
+                >
+                  {username.slice(0, 2).toUpperCase() || user.email.split('@')[0].slice(0, 2).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div className="upload-inputs">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarFileChange}
+                id="avatar-upload"
+                className="file-input"
+              />
+              <label htmlFor="avatar-upload" className="upload-btn glass">
+                📸 Загрузить изображение
+              </label>
+              {avatarPreview && (
+                <button
+                  onClick={() => {
+                    setAvatarPreview(null)
+                    setAvatarFile(null)
+                  }}
+                  className="clear-btn"
+                >
+                  ✕ Очистить
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="setting-item">
+          <label>Цвет аватара (если нет изображения)</label>
           <div className="color-picker">
             {avatarColors.map(color => (
               <button
