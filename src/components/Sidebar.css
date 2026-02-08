@@ -329,23 +329,6 @@
     transform: translateX(0);
   }
 
-  /* Backdrop overlay */
-  .sidebar::before {
-    content: '';
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.5);
-    display: none;
-    z-index: -1;
-  }
-
-  .sidebar.open::before {
-    display: block;
-  }
-
   .sidebar-header {
     flex-direction: row;
     padding: 16px;

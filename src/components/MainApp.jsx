@@ -66,6 +66,12 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
 
   return (
     <div className="main-app">
+      {sidebarOpen && (
+        <div 
+          className="sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
       <button 
         className="sidebar-toggle"
         onClick={() => setSidebarOpen(!sidebarOpen)}
