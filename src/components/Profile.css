@@ -1,0 +1,257 @@
+.profile-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-card,
+.stats-card,
+.plan-card {
+  background: var(--card-light);
+  padding: 16px;
+  border-radius: 12px;
+  transition: background 0.3s;
+}
+
+.dark-theme .profile-card,
+.dark-theme .stats-card,
+.dark-theme .plan-card {
+  background: var(--card-dark);
+}
+
+.profile-card {
+  padding: 20px;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.profile-email {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-light);
+}
+
+.dark-theme .profile-email {
+  color: var(--text-dark);
+}
+
+.profile-id {
+  color: var(--muted-light);
+  margin-top: 4px;
+}
+
+.dark-theme .profile-id {
+  color: var(--muted-dark);
+}
+
+.stats-card h3,
+.plan-card h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  color: var(--text-light);
+}
+
+.dark-theme .stats-card h3,
+.dark-theme .plan-card h3 {
+  color: var(--text-dark);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+}
+
+.dark-theme .stat-item {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.stat-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent-light);
+  margin-bottom: 4px;
+}
+
+.dark-theme .stat-num {
+  color: var(--accent-dark);
+}
+
+.stat-name {
+  font-size: 12px;
+  color: var(--muted-light);
+}
+
+.dark-theme .stat-name {
+  color: var(--muted-dark);
+}
+
+.edit-btn {
+  padding: 8px 12px;
+  font-size: 13px;
+  background: var(--accent-light);
+  color: var(--btn-text-light);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.dark-theme .edit-btn {
+  background: var(--accent-dark);
+  color: var(--btn-text-dark);
+}
+
+.plan-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.plan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.plan-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.dark-theme .plan-field label {
+  color: var(--text-dark);
+}
+
+.plan-field input {
+  padding: 10px;
+  border: 1px solid #e6e9ee;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.dark-theme .plan-field input {
+  border-color: #1e293b;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text-dark);
+}
+
+.save-btn {
+  padding: 10px;
+  background: var(--accent-light);
+  color: var(--btn-text-light);
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.dark-theme .save-btn {
+  background: var(--accent-dark);
+  color: var(--btn-text-dark);
+}
+
+.plan-view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plan-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.dark-theme .plan-item {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.plan-item span {
+  color: var(--muted-light);
+}
+
+.dark-theme .plan-item span {
+  color: var(--muted-dark);
+}
+
+.plan-item strong {
+  color: var(--text-light);
+}
+
+.dark-theme .plan-item strong {
+  color: var(--text-dark);
+}
+
+.logout-btn {
+  padding: 12px;
+  background: #fee2e2;
+  color: #991b1b;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dark-theme .logout-btn {
+  background: rgba(220, 38, 38, 0.15);
+  color: #fca5a5;
+}
+
+.logout-btn:hover {
+  background: #fecaca;
+}
+
+.dark-theme .logout-btn:hover {
+  background: rgba(220, 38, 38, 0.25);
+}
+
+@media (max-width: 480px) {
+  .profile-container {
+    gap: 12px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .profile-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 18px;
+  }
+
+  .profile-email {
+    font-size: 14px;
+  }
+}
