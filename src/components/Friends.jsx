@@ -26,24 +26,39 @@ export default function Friends({ user = {}, onStartChat = () => {} }) {
     try {
       console.log('[Friends] Загружаем пользователей из Supabase...')
       
-      // Получаем всех пользователей из auth.users
-      const { data: usersData, error } = await supabase.auth.admin.listUsers()
-      
+      // Получаем всех пользователей из таблицы profiles (кроме текущего)
+      const { data: profilesData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .neq('id', user.id)
+
       if (error) {
-        console.error('❌ Ошибка загрузки пользователей:', error.message)
+        console.warn('⚠️ Таблица profiles еще не создана, используем fallback')
+        // Fallback: пытаемся получить из localStorage
+        const stored = JSON.parse(localStorage.getItem('qs_users') || '[]')
+        const filtered = stored.filter(u => u.id !== user.id).map(u => ({
+          id: u.id,
+          email: u.email,
+          username: u.username || u.email.split('@')[0],
+          avatarColor: u.avatarColor || '#667eea',
+          status: u.status || '',
+          avatar: u.avatar || null
+        }))
+        console.log('✓ Загружено из localStorage:', filtered.length)
+        setAllUsers(filtered)
+        setLoading(false)
         return
       }
 
-      // Фильтруем (исключаем текущего пользователя)
-      const filteredUsers = (usersData?.users || [])
-        .filter(u => u.id !== user.id)
-        .map(u => ({
-          id: u.id,
-          email: u.email,
-          username: u.user_metadata?.username || u.email?.split('@')[0] || 'User',
-          avatarColor: u.user_metadata?.avatarColor || '#667eea',
-          status: u.user_metadata?.status || '',
-          avatar: u.user_metadata?.avatar || null
+      // Фильтруем данные
+      const filteredUsers = (profilesData || [])
+        .map(profile => ({
+          id: profile.id,
+          email: profile.email,
+          username: profile.username || profile.email?.split('@')[0] || 'User',
+          avatarColor: profile.avatar_color || '#667eea',
+          status: profile.status || '',
+          avatar: profile.avatar || null
         }))
 
       console.log('✓ Загружено пользователей:', filteredUsers.length)

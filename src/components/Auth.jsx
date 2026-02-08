@@ -96,6 +96,26 @@ export default function Auth({ onLogin, theme, onThemeChange }) {
       console.log('✓ [AUTH] Вход успешен:', data.user.email)
       console.log('  User ID:', data.user.id)
 
+      // Создаем профиль пользователя в таблице profiles
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: data.user.id,
+          email: data.user.email,
+          username: data.user.user_metadata?.username || data.user.email.split('@')[0],
+          avatar_color: data.user.user_metadata?.avatarColor || '#667eea',
+          avatar: null,
+          status: '',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' })
+
+      if (profileError) {
+        console.warn('⚠️ Не удалось создать профиль в БД:', profileError.message)
+        // Продолжаем, потому что таблица может еще не быть создана
+      } else {
+        console.log('✓ Профиль добавлен в БД')
+      }
+
       // Сохраняем локально для быстрого доступа
       localStorage.setItem('qs_user', JSON.stringify({
         id: data.user.id,
