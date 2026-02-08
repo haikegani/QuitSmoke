@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { supabase } from './lib/supabaseClient'
 import Auth from './components/Auth'
 import MainApp from './components/MainApp'
 import './App.css'
@@ -11,28 +12,56 @@ export default function App() {
   })
 
   useEffect(() => {
-    // Delay to ensure styles are loaded
-    setTimeout(() => {
-      const stored = localStorage.getItem('qs_user')
-      console.log('=== [APP] ИНИЦИАЛИЗАЦИЯ ===')
-      console.log('localStorage.getItem("qs_user"):', stored ? 'найден' : 'не найден')
-      
-      // Проверяем сколько пользователей зарегистрировано
-      const users = JSON.parse(localStorage.getItem('qs_users') || '[]')
-      console.log('Всего зарегистрировано пользователей:', users.length)
-      users.forEach(u => console.log('  -', u.email))
-      
-      if (stored) {
-        try {
-          const userData = JSON.parse(stored)
-          console.log('✓ Текущий пользователь:', userData.email)
-          setUser(userData)
-        } catch (e) {
-          console.error('❌ Failed to parse stored user:', e)
+    // Check Supabase session
+    const initAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (session?.user) {
+          console.log('✓ [APP] Supabase session найдена:', session.user.email)
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            username: session.user.user_metadata?.username || '',
+            avatar: session.user.user_metadata?.avatar || null,
+            avatarColor: session.user.user_metadata?.avatarColor || '#667eea'
+          })
+        } else {
+          // Fallback to localStorage for development
+          const stored = localStorage.getItem('qs_user')
+          if (stored) {
+            console.log('[APP] Fallback: загружаю из localStorage')
+            setUser(JSON.parse(stored))
+          }
         }
+      } catch (err) {
+        console.error('[APP] Ошибка проверки session:', err)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
-    }, 100)
+    }
+
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[AUTH] Event:', event)
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email,
+          username: session.user.user_metadata?.username || '',
+          avatar: session.user.user_metadata?.avatar || null,
+          avatarColor: session.user.user_metadata?.avatarColor || '#667eea'
+        })
+      } else {
+        setUser(null)
+      }
+    })
+
+    initAuth()
+
+    return () => {
+      subscription?.unsubscribe()
+    }
   }, [])
 
   useEffect(() => {
@@ -60,6 +89,7 @@ export default function App() {
   }
 
   const handleLogout = () => {
+    supabase.auth.signOut()
     setUser(null)
     localStorage.removeItem('qs_user')
   }

@@ -1,13 +1,14 @@
 import React, { useState } from 'react'
+import { supabase } from '../lib/supabaseClient'
 import './Auth.css'
 
 export default function Auth({ onLogin, theme, onThemeChange }) {
-  const [mode, setMode] = useState('login') // 'login' | 'register'
+  const [mode, setMode] = useState('email') // 'email' | 'otp'
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
 
   const getThemeLabel = () => {
     if (theme === 'auto') return 'Авто'
@@ -25,107 +26,96 @@ export default function Auth({ onLogin, theme, onThemeChange }) {
       setError('Email не может быть пустым')
       return false
     }
-    if (!password) {
-      setError('Пароль не может быть пустым')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Введи корректный email')
       return false
-    }
-    if (mode === 'register') {
-      if (password !== confirmPassword) {
-        setError('Пароли не совпадают')
-        return false
-      }
-      if (password.length < 6) {
-        setError('Пароль должен быть минимум 6 символов')
-        return false
-      }
     }
     return true
   }
 
-  const handleSubmit = async (e) => {
+  const handleSendOtp = async (e) => {
     e.preventDefault()
     setError('')
+    setMessage('')
 
     if (!validate()) return
 
     setLoading(true)
+    
+    try {
+      console.log('[AUTH] Отправляем OTP на:', email)
+      
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          shouldCreateUser: true
+        }
+      })
+
+      if (error) throw error
+
+      console.log('✓ [AUTH] OTP отправлен на:', email)
+      setMessage('Письмо с кодом отправлено на твой email!')
+      setMode('otp')
+      setOtp('')
+    } catch (err) {
+      console.error('❌ [AUTH] Ошибка OTP:', err.message)
+      setError(err.message || 'Ошибка при отправке OTP')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault()
+    setError('')
+    setMessage('')
+
+    if (!otp.trim()) {
+      setError('Введи код из письма')
+      return
+    }
+
+    setLoading(true)
 
     try {
-      // Simple local authentication without Supabase OTP
-      if (mode === 'register') {
-        // Check if user exists
-        const exists = JSON.parse(localStorage.getItem('qs_users') || '[]').find(u => u.email === email)
-        if (exists) {
-          setError('Пользователь с этим email уже существует')
-          setLoading(false)
-          return
-        }
+      console.log('[AUTH] Проверяем OTP...')
 
-        // Register new user
-        const users = JSON.parse(localStorage.getItem('qs_users') || '[]')
-        const newUser = {
-          id: Date.now().toString(),
-          email,
-          password, // Note: In production, NEVER store plain password - hash it server-side
-          username: '',
-          avatar: null,
-          avatarColor: '#667eea',
-          bio: '',
-          createdAt: new Date().toISOString()
-        }
-        users.push(newUser)
-        localStorage.setItem('qs_users', JSON.stringify(users))
-        // Также сохраняем профиль отдельно для быстрого доступа
-        localStorage.setItem(`qs_user_${newUser.id}`, JSON.stringify(newUser))
-        
-        // Debug: Проверяем что сохранилось
-        console.log('✓ [AUTH] Пользователь зарегистрирован:', newUser.email)
-        console.log('  Сохранено в qs_users:', users.length, 'всего')
-        console.log('  Сохранено ключ:', `qs_user_${newUser.id}`)
-        console.log('  Проверка:', JSON.parse(localStorage.getItem(`qs_user_${newUser.id}`)))
-        
-        setTimeout(() => {
-          onLogin({
-            id: newUser.id,
-            email: newUser.email,
-            username: newUser.username,
-            avatar: newUser.avatar,
-            avatarColor: newUser.avatarColor
-          })
-        }, 500)
-      } else {
-        // Login - проверяем сохранённые данные
-        const users = JSON.parse(localStorage.getItem('qs_users') || '[]')
-        console.log('? [AUTH] Попытка входа:', email)
-        console.log('  Пользователей в qs_users:', users.length)
-        users.forEach(u => console.log('    -', u.email))
-        
-        const user = users.find(u => u.email === email && u.password === password)
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: otp.trim(),
+        type: 'email'
+      })
 
-        if (!user) {
-          console.error('❌ [AUTH] Вход не удался:', email)
-          setError('Неверные email или пароль')
-          setLoading(false)
-          return
-        }
+      if (error) throw error
 
-        // Убедимся что данные сохранены как профиль
-        localStorage.setItem(`qs_user_${user.id}`, JSON.stringify(user))
-        console.log('✓ [AUTH] Вход успешен:', email)
-        console.log('  ID пользователя:', user.id)
-
-        setTimeout(() => {
-          onLogin({
-            id: user.id,
-            email: user.email,
-            username: user.username || '',
-            avatar: user.avatar || null,
-            avatarColor: user.avatarColor || '#667eea'
-          })
-        }, 500)
+      if (!data.user) {
+        throw new Error('Не удалось получить данные пользователя')
       }
+
+      console.log('✓ [AUTH] Вход успешен:', data.user.email)
+      console.log('  User ID:', data.user.id)
+
+      // Сохраняем локально для быстрого доступа
+      localStorage.setItem('qs_user', JSON.stringify({
+        id: data.user.id,
+        email: data.user.email,
+        username: data.user.user_metadata?.username || '',
+        avatar: data.user.user_metadata?.avatar || null,
+        avatarColor: data.user.user_metadata?.avatarColor || '#667eea'
+      }))
+
+      onLogin({
+        id: data.user.id,
+        email: data.user.email,
+        username: data.user.user_metadata?.username || '',
+        avatar: data.user.user_metadata?.avatar || null,
+        avatarColor: data.user.user_metadata?.avatarColor || '#667eea'
+      })
     } catch (err) {
-      setError(err.message)
+      console.error('❌ [AUTH] Ошибка верификации:', err.message)
+      setError(err.message || 'Неверный код')
+    } finally {
       setLoading(false)
     }
   }
@@ -144,75 +134,98 @@ export default function Auth({ onLogin, theme, onThemeChange }) {
           </button>
         </header>
 
-        <div className="auth-mode-switch">
-          <button
-            className={`mode-btn ${mode === 'login' ? 'active' : ''}`}
-            onClick={() => { setMode('login'); setError('') }}
-          >
-            Вход
-          </button>
-          <button
-            className={`mode-btn ${mode === 'register' ? 'active' : ''}`}
-            onClick={() => { setMode('register'); setError('') }}
-          >
-            Регистрация
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              disabled={loading}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Пароль</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              disabled={loading}
-            />
-          </div>
-
-          {mode === 'register' && (
-            <div className="form-group">
-              <label>Подтверждение пароля</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-                disabled={loading}
-              />
+        {mode === 'email' ? (
+          <form onSubmit={handleSendOtp} className="auth-form">
+            <div className="auth-mode-switch">
+              <div className="mode-label" style={{ textAlign: 'center', padding: '16px 0', fontSize: '14px', color: '#666' }}>
+                Вход через OTP код
+              </div>
             </div>
-          )}
 
-          {error && <div className="error-message">{error}</div>}
+            <div className="form-group">
+              <label>Твой Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                disabled={loading}
+                autoFocus
+              />
+              <p className="muted" style={{ fontSize: '12px', marginTop: '6px' }}>
+                Мы отправим код для входа, регистрация не требуется
+              </p>
+            </div>
 
-          <button
-            type="submit"
-            className="submit-btn"
-            disabled={loading}
-          >
-            {loading ? 'Загрузка...' : (mode === 'login' ? 'Войти' : 'Зарегистрироваться')}
-          </button>
+            {error && <div className="error-message">{error}</div>}
+            {message && <div className="success-message" style={{ background: '#e8f5e9', color: '#2e7d32', padding: '10px', borderRadius: '4px' }}>{message}</div>}
 
-          <div className="auth-footer">
-            <p className="muted" style={{ fontSize: '13px', marginTop: '16px', textAlign: 'center' }}>
-              {mode === 'login' 
-                ? 'Нет аккаунта? Перейди на регистрацию' 
-                : 'Уже есть аккаунт? Перейди на вход'}
-            </p>
-          </div>
-        </form>
+            <button
+              type="submit"
+              className="submit-btn"
+              disabled={loading}
+            >
+              {loading ? 'Отправляю...' : 'Отправить код'}
+            </button>
+
+            <div className="auth-footer">
+              <p className="muted" style={{ fontSize: '13px', marginTop: '16px', textAlign: 'center' }}>
+                Один код на всех - простая и безопасная авторизация
+              </p>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyOtp} className="auth-form">
+            <div className="auth-mode-switch">
+              <button
+                type="button"
+                className="mode-btn"
+                onClick={() => {
+                  setMode('email')
+                  setOtp('')
+                  setError('')
+                  setMessage('')
+                }}
+              >
+                ← Назад
+              </button>
+            </div>
+
+            <div className="form-group">
+              <label>Введи код из письма</label>
+              <input
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                disabled={loading}
+                autoFocus
+                maxLength="6"
+                style={{ fontSize: '24px', letterSpacing: '4px', textAlign: 'center' }}
+              />
+              <p className="muted" style={{ fontSize: '12px', marginTop: '6px' }}>
+                Письмо с кодом отправляется 1-2 минуты
+              </p>
+            </div>
+
+            {error && <div className="error-message">{error}</div>}
+            {message && <div className="success-message" style={{ background: '#e8f5e9', color: '#2e7d32', padding: '10px', borderRadius: '4px' }}>{message}</div>}
+
+            <button
+              type="submit"
+              className="submit-btn"
+              disabled={loading}
+            >
+              {loading ? 'Проверяю...' : 'Подтвердить'}
+            </button>
+
+            <div className="auth-footer">
+              <p className="muted" style={{ fontSize: '13px', marginTop: '16px', textAlign: 'center' }}>
+                Проверь спам, если не видишь письма
+              </p>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   )

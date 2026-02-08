@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabaseClient'
 import './Friends.css'
 
 export default function Friends({ user = {}, onStartChat = () => {} }) {
@@ -6,66 +7,55 @@ export default function Friends({ user = {}, onStartChat = () => {} }) {
   const [searchResults, setSearchResults] = useState([])
   const [allUsers, setAllUsers] = useState([])
   const [selectedUser, setSelectedUser] = useState(null)
-  const [searchMode, setSearchMode] = useState('username')
-  const [debugInfo, setDebugInfo] = useState('Инициализация...')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    console.log('✓ Friends компонент загружен')
-    console.log('Текущий пользователь:', user)
+    loadUsers()
     
-    if (!user || !user.id) {
-      console.log('❌ Нет user или user.id')
+    // Проверяем новых пользователей каждые 5 секунд
+    const interval = setInterval(loadUsers, 5000)
+    return () => clearInterval(interval)
+  }, [user?.id])
+
+  const loadUsers = async () => {
+    if (!user?.id) {
+      console.log('❌ Нет user.id')
       return
     }
-    
-    // Загрузить всех зарегистрированных пользователей
-    const users = []
-    
-    console.log('=== ПОИСК ПОЛЬЗОВАТЕЛЕЙ ===')
-    console.log('localStorage.length:', localStorage.length)
-    
-    // Ищем в qs_user_ префиксе
-    console.log('Ищу qs_user_* ключи...')
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (key && key.startsWith('qs_user_')) {
-        try {
-          const userData = JSON.parse(localStorage.getItem(key))
-          console.log('  Найден:', key, userData.email)
-          if (userData && userData.id !== user.id && userData.email) {
-            users.push(userData)
-            console.log('    ✓ Добавлен в список')
-          }
-        } catch (e) {
-          console.error('  ❌ Ошибка при парсинге:', key, e)
-        }
-      }
-    }
-    
-    // Также ищем в qs_users массиве (на случай если там хранятся)
-    console.log('Ищу qs_users...')
+
     try {
-      const allUsersData = JSON.parse(localStorage.getItem('qs_users') || '[]')
-      console.log('  qs_users найден, пользователей:', allUsersData.length)
-      if (Array.isArray(allUsersData)) {
-        allUsersData.forEach(u => {
-          if (u && u.id !== user.id && u.email && !users.find(x => x.id === u.id)) {
-            console.log('  ✓ Добавлен:', u.email)
-            users.push(u)
-          }
-        })
+      console.log('[Friends] Загружаем пользователей из Supabase...')
+      
+      // Получаем всех пользователей из auth.users
+      const { data: usersData, error } = await supabase.auth.admin.listUsers()
+      
+      if (error) {
+        console.error('❌ Ошибка загрузки пользователей:', error.message)
+        return
       }
-    } catch (e) {
-      console.error('  ❌ Ошибка qs_users:', e)
+
+      // Фильтруем (исключаем текущего пользователя)
+      const filteredUsers = (usersData?.users || [])
+        .filter(u => u.id !== user.id)
+        .map(u => ({
+          id: u.id,
+          email: u.email,
+          username: u.user_metadata?.username || u.email?.split('@')[0] || 'User',
+          avatarColor: u.user_metadata?.avatarColor || '#667eea',
+          status: u.user_metadata?.status || '',
+          avatar: u.user_metadata?.avatar || null
+        }))
+
+      console.log('✓ Загружено пользователей:', filteredUsers.length)
+      filteredUsers.forEach(u => console.log('  -', u.email))
+      
+      setAllUsers(filteredUsers)
+      setLoading(false)
+    } catch (error) {
+      console.error('❌ Ошибка при загрузке пользователей:', error)
+      setLoading(false)
     }
-    
-    console.log('=== ИТОГО ===')
-    console.log('Загружено пользователей:', users.length)
-    users.forEach(u => console.log('  -', u.email))
-    
-    setDebugInfo(`Загружено: ${users.length} пользователей`)
-    setAllUsers(users)
-  }, [user?.id])
+  }
 
   const handleSearch = (query) => {
     setSearchQuery(query)
@@ -77,24 +67,15 @@ export default function Friends({ user = {}, onStartChat = () => {} }) {
     }
 
     const q = query.toLowerCase().trim()
-    console.log('Searching for:', q, 'in', allUsers.length, 'users')
+    console.log('🔍 Поиск:', q, 'из', allUsers.length, 'пользователей')
     
     const results = allUsers.filter(u => {
-      const username = (u.username || u.email.split('@')[0]).toLowerCase()
-      const email = (u.email || '').toLowerCase()
-
-      if (searchMode === 'username') {
-        const match = username.includes(q)
-        if (match) console.log('Match by username:', username)
-        return match
-      } else {
-        const match = email.includes(q)
-        if (match) console.log('Match by email:', email)
-        return match
-      }
+      const emailMatch = u.email?.toLowerCase().includes(q)
+      const usernameMatch = u.username?.toLowerCase().includes(q)
+      return emailMatch || usernameMatch
     })
 
-    console.log('Found results:', results.length)
+    console.log('✓ Найдено:', results.length, 'совпадений')
     setSearchResults(results)
   }
 
@@ -159,38 +140,10 @@ export default function Friends({ user = {}, onStartChat = () => {} }) {
       <div className="friends-search glass">
         <h2>🔍 Найти людей</h2>
 
-        {/* Режимы поиска */}
-        <div className="search-mode-toggle">
-          <button
-            className={searchMode === 'username' ? 'mode-btn active' : 'mode-btn'}
-            onClick={() => {
-              setSearchMode('username')
-              setSearchQuery('')
-              setSearchResults([])
-            }}
-          >
-            По юзернейму
-          </button>
-          <button
-            className={searchMode === 'email' ? 'mode-btn active' : 'mode-btn'}
-            onClick={() => {
-              setSearchMode('email')
-              setSearchQuery('')
-              setSearchResults([])
-            }}
-          >
-            По email
-          </button>
-        </div>
-
         {/* Поле поиска */}
         <input
           type="text"
-          placeholder={
-            searchMode === 'username'
-              ? 'Введи юзернейм...'
-              : 'Введи email...'
-          }
+          placeholder="Ищи по email или юзернейму..."
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
           className="search-input"
@@ -250,6 +203,13 @@ export default function Friends({ user = {}, onStartChat = () => {} }) {
         </div>
       )}
 
+      {searchQuery && searchResults.length === 0 && !loading && (
+        <div className="empty-state glass">
+          <div className="empty-icon">🔍</div>
+          <p>Никого не найдено</p>
+        </div>
+      )}
+
       {/* DEBUG INFO */}
       <div style={{ 
         marginTop: '20px', 
@@ -260,9 +220,9 @@ export default function Friends({ user = {}, onStartChat = () => {} }) {
         fontFamily: 'monospace'
       }}>
         <strong>🔧 DEBUG:</strong>
-        <div>Пользователей доступно: {allUsers.length}</div>
+        <div>Пользователей в системе: {allUsers.length}</div>
         <div>Последний поиск: "{searchQuery}" → {searchResults.length} совпадений</div>
-        <div>user.id: {user?.id || 'не определен'}</div>
+        <div>Status: {loading ? 'Загружаю...' : 'Готово'}</div>
       </div>
     </div>
   )
