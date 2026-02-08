@@ -52,10 +52,14 @@ async function logout() {
 }
 
 // Подписка на изменение аутентификации
+let currentUserId = null;
 supabaseClient.auth.onAuthStateChange((_, session) => {
   const user = session && session.user ? session.user : null;
-  if (user) init(user.id, session.user.user_metadata?.theme);
-  else {
+  if (user) {
+    currentUserId = user.id;
+    init(user.id, session.user.user_metadata?.theme);
+  } else {
+    currentUserId = null;
     auth.style.display = "block";
     app.style.display = "none";
   }
@@ -65,14 +69,14 @@ async function init(userId, userTheme) {
   auth.style.display = "none";
   app.style.display = "block";
 
-  const { data: plan } = await supabase
+  const { data: plan } = await supabaseClient
     .from("quit_plan")
     .select("*")
     .eq("user_id", userId)
     .single();
 
   if (!plan) {
-    await supabase.from("quit_plan").insert({
+    await supabaseClient.from("quit_plan").insert({
       user_id: userId,
       start_limit: 30,
       daily_step: 1,
@@ -92,7 +96,7 @@ async function init(userId, userTheme) {
 
   async function todayCount() {
     const today = new Date().toISOString().split("T")[0];
-    const { count } = await supabase
+    const { count } = await supabaseClient
       .from("puffs")
       .select("*", { count:"exact", head:true })
       .eq("user_id", userId)
@@ -154,6 +158,9 @@ async function init(userId, userTheme) {
     applyTheme(userTheme);
     localStorage.setItem('qs_theme', userTheme);
   }else loadStoredTheme();
+
+  // after init show feed and update profile/friends
+  try{ showView && showView('feed'); }catch(e){}
 }
 
 // UI handlers
@@ -170,3 +177,77 @@ themeToggle?.addEventListener('click', async ()=>{
 
 // initial theme on page load
 loadStoredTheme();
+
+// Compact app UI: navigation, friends and profile
+const navFeed = document.getElementById('navFeed');
+const navFriends = document.getElementById('navFriends');
+const navProfile = document.getElementById('navProfile');
+const friendEmailInput = document.getElementById('friendEmail');
+const addFriendBtn = document.getElementById('addFriendBtn');
+const friendListEl = document.getElementById('friendList');
+const avatarEl = document.getElementById('avatar');
+
+function showView(name){
+  const feed = document.getElementById('feedView');
+  const friends = document.getElementById('friendsView');
+  const profile = document.getElementById('profileView');
+  feed.style.display = name==='feed'? 'block':'none';
+  friends.style.display = name==='friends'? 'block':'none';
+  profile.style.display = name==='profile'? 'block':'none';
+}
+
+function friendsKey(){ return 'qs_friends_' + (currentUserId || 'anon'); }
+function loadFriends(){ try{ return JSON.parse(localStorage.getItem(friendsKey()) || '[]'); }catch(e){return []} }
+function saveFriends(list){ localStorage.setItem(friendsKey(), JSON.stringify(list)); }
+
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+
+function renderFriends(){
+  if(!friendListEl) return;
+  const list = loadFriends();
+  friendListEl.innerHTML = '';
+  list.forEach((f,i)=>{
+    const li = document.createElement('li');
+    li.style.padding = '8px 6px';
+    li.style.borderBottom = '1px solid rgba(0,0,0,0.06)';
+    li.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600">${escapeHtml(f.name||f.email)}</div><div class="muted" style="font-size:12px">${escapeHtml(f.email)}</div></div><div><button data-i="${i}" class="removeFriendBtn">Удалить</button></div></div>`;
+    friendListEl.appendChild(li);
+  });
+  friendListEl.querySelectorAll('.removeFriendBtn').forEach(b=>b.addEventListener('click', e=>{
+    const idx = +e.target.dataset.i;
+    const arr = loadFriends(); arr.splice(idx,1); saveFriends(arr); renderFriends();
+  }));
+}
+
+addFriendBtn?.addEventListener('click', ()=>{
+  const em = friendEmailInput?.value?.trim();
+  if(!em) return alert('Введите email друга');
+  const list = loadFriends();
+  if(list.find(x=>x.email===em)) return alert('Этот пользователь уже в друзьях');
+  list.push({ email: em, name: em.split('@')[0] });
+  saveFriends(list);
+  friendEmailInput.value = '';
+  renderFriends();
+});
+
+navFeed?.addEventListener('click', ()=>{ showView('feed'); });
+navFriends?.addEventListener('click', ()=>{ showView('friends'); renderFriends(); });
+navProfile?.addEventListener('click', ()=>{ showView('profile'); renderProfile(); });
+
+async function renderProfile(){
+  const info = document.getElementById('profileInfo');
+  if(!info) return;
+  try{
+    const r = await supabaseClient.auth.getUser();
+    const user = r?.data?.user || null;
+    if(user){
+      avatarEl.textContent = (user.email||'U').slice(0,2).toUpperCase();
+      info.innerHTML = `<div style="font-weight:700">${escapeHtml(user.email||'')}</div><div class="muted" style="font-size:13px">id: ${escapeHtml(user.id||'')}</div>`;
+    }else{
+      info.textContent = 'Гость';
+    }
+  }catch(e){ info.textContent = 'Ошибка загрузки профиля'; }
+}
+
+// quick default view
+showView('feed');

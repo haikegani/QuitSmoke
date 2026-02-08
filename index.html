@@ -40,31 +40,61 @@
   </style>
 </head>
 <body>
-<div class="card">
-  <h2>🚭 QuitSmoke</h2>
-
-  <div id="auth">
-    <div class="row">
-      <input id="email" placeholder="Email" type="email" autocomplete="email">
-      <button id="loginBtn">Войти</button>
-    </div>
-    <div class="meta" style="margin-top:10px">
-      <div class="muted">Получите ссылку для входа по email</div>
-      <div class="theme-toggle">
-        <div class="muted">Тема</div>
-        <button id="themeToggle">Авто</button>
+<div class="card compact">
+    <header style="display:flex;align-items:center;gap:10px;">
+      <div id="avatar" style="width:38px;height:38px;border-radius:10px;background:var(--muted);display:flex;align-items:center;justify-content:center;color:var(--card);font-weight:700">QS</div>
+      <div style="flex:1">
+        <div style="font-weight:700">QuitSmoke</div>
+        <div class="muted" style="font-size:12px">Поддержка и прогресс</div>
       </div>
-    </div>
-  </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="themeToggle" style="padding:6px 8px">Авто</button>
+      </div>
+    </header>
 
-  <div id="app" style="display:none">
-    <p id="status" class="muted"></p>
-    <p id="limit" class="muted"></p>
-    <button id="puffBtn">Сделал затяжку</button>
-    <canvas id="chart" height="200"></canvas>
-    <div class="row" style="margin-top:10px">
-      <button id="logoutBtn">Выйти</button>
-    </div>
+    <main style="margin-top:10px">
+      <div id="auth">
+        <div class="row">
+          <input id="email" placeholder="Email" type="email" autocomplete="email">
+          <button id="loginBtn">Войти</button>
+        </div>
+        <div class="meta" style="margin-top:10px">
+          <div class="muted">Получите ссылку для входа по email</div>
+        </div>
+      </div>
+
+      <div id="app" style="display:none">
+        <div id="views">
+          <div id="feedView">
+            <p id="status" class="muted"></p>
+            <p id="limit" class="muted"></p>
+            <button id="puffBtn">Сделал затяжку</button>
+            <canvas id="chart" height="160"></canvas>
+          </div>
+
+          <div id="friendsView" style="display:none">
+            <div class="row">
+              <input id="friendEmail" placeholder="Email друга" type="email">
+              <button id="addFriendBtn">Добавить</button>
+            </div>
+            <ul id="friendList" style="list-style:none;padding:0;margin-top:10px"></ul>
+          </div>
+
+          <div id="profileView" style="display:none">
+            <div id="profileInfo" style="margin-bottom:8px"></div>
+            <div class="row">
+              <button id="logoutBtn">Выйти</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <nav style="margin-top:12px;display:flex;gap:8px;justify-content:space-between">
+      <button id="navFeed">Лента</button>
+      <button id="navFriends">Друзья</button>
+      <button id="navProfile">Профиль</button>
+    </nav>
   </div>
 </div>
 
