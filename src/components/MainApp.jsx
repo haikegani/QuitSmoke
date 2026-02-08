@@ -11,6 +11,7 @@ import './MainApp.css'
 
 export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdateUser }) {
   const [activeTab, setActiveTab] = useState('feed')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [friends, setFriends] = useState(() => {
     const stored = localStorage.getItem(`qs_friends_${user.id}`)
     return stored ? JSON.parse(stored) : []
@@ -65,10 +66,21 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
 
   return (
     <div className="main-app">
+      <button 
+        className="sidebar-toggle"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        aria-label="Toggle sidebar"
+      >
+        ☰
+      </button>
       <Sidebar
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab)
+          setSidebarOpen(false)
+        }}
         user={user}
+        isOpen={sidebarOpen}
       />
 
       <main className="app-content">

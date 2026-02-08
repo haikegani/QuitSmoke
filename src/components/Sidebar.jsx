@@ -11,9 +11,9 @@ const MENU_ITEMS = [
   { id: 'settings', label: 'Настройки', icon: '⚙️', section: 'user' },
 ]
 
-export default function Sidebar({ activeTab, onTabChange, user, unreadChats = 0 }) {
+export default function Sidebar({ activeTab, onTabChange, user, unreadChats = 0, isOpen = false }) {
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       {/* Header */}
       <div className="sidebar-header">
         <div className="sidebar-logo">QS</div>
