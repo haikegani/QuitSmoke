@@ -3,7 +3,10 @@ import './Friends.css'
 
 export default function Friends({ 
   friends = [], 
+  friendRequests = [],
   onAddFriend = () => {}, 
+  onAcceptRequest = () => {},
+  onDeclineRequest = () => {},
   onRemoveFriend = () => {}, 
   user = {} 
 }) {
@@ -16,6 +19,7 @@ export default function Friends({
 
   // Убедимся, что friends - это массив
   const friendsList = Array.isArray(friends) ? friends : []
+  const requestsList = Array.isArray(friendRequests) ? friendRequests : []
 
   useEffect(() => {
     if (!user || !user.id) return
@@ -95,8 +99,60 @@ export default function Friends({
     }
   }
 
+  const handleAccept = (requestId) => {
+    if (onAcceptRequest && typeof onAcceptRequest === 'function') {
+      onAcceptRequest(requestId)
+      setSuccess('Заявка принята! 🎉')
+      setTimeout(() => setSuccess(''), 2000)
+    }
+  }
+
+  const handleDecline = (requestId) => {
+    if (onDeclineRequest && typeof onDeclineRequest === 'function') {
+      onDeclineRequest(requestId)
+      setSuccess('Заявка отклонена')
+      setTimeout(() => setSuccess(''), 2000)
+    }
+  }
+
   return (
     <div className="friends-container">
+      {/* Заявки в друзья */}
+      {requestsList.length > 0 && (
+        <div className="friend-requests">
+          <h2>📬 Заявки в друзья ({requestsList.length})</h2>
+          <div className="requests-list">
+            {requestsList.map(request => (
+              <div key={request.id} className="request-item">
+                <div className="request-info">
+                  <div className="request-avatar">
+                    {request.fromUsername.slice(0, 1).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="request-from">{request.fromUsername}</div>
+                    <div className="request-email">{request.fromEmail}</div>
+                  </div>
+                </div>
+                <div className="request-buttons">
+                  <button 
+                    className="btn-accept"
+                    onClick={() => handleAccept(request.id)}
+                  >
+                    ✓ Принять
+                  </button>
+                  <button 
+                    className="btn-decline"
+                    onClick={() => handleDecline(request.id)}
+                  >
+                    ✕ Отклонить
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Поиск и добавление друзей */}
       <div className="friends-search">
         <h2>👥 Найти друзей</h2>

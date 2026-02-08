@@ -5,8 +5,28 @@ const REACTIONS = ['❤️', '😂', '😃', '😍', '🎉', '💪', '😢', '�
 
 export default function Posts({ user, friends }) {
   const [posts, setPosts] = useState(() => {
-    const stored = localStorage.getItem('qs_posts')
-    return stored ? JSON.parse(stored) : []
+    const allPosts = []
+    // Загружаем посты из общего хранилища
+    const storedPosts = localStorage.getItem('qs_posts')
+    if (storedPosts) {
+      try {
+        allPosts.push(...JSON.parse(storedPosts))
+      } catch (e) {}
+    }
+    // Загружаем посты от всех пользователей
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith('qs_posts_')) {
+        try {
+          const userPosts = JSON.parse(localStorage.getItem(key))
+          if (Array.isArray(userPosts)) {
+            allPosts.push(...userPosts)
+          }
+        } catch (e) {}
+      }
+    }
+    // Сортируем по времени (новые сверху)
+    return allPosts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
   })
 
   const [newPost, setNewPost] = useState('')
@@ -28,7 +48,15 @@ export default function Posts({ user, friends }) {
 
     const updated = [post, ...posts]
     setPosts(updated)
+    
+    // Сохраняем в общее хранилище для жёсткости
     localStorage.setItem('qs_posts', JSON.stringify(updated))
+    
+    // Сохраняем посты текущего пользователя отдельно
+    const userPostsKey = `qs_posts_${user.id}`
+    const userPosts = [post, ...(localStorage.getItem(userPostsKey) ? JSON.parse(localStorage.getItem(userPostsKey)) : [])]
+    localStorage.setItem(userPostsKey, JSON.stringify(userPosts))
+    
     setNewPost('')
   }
 
