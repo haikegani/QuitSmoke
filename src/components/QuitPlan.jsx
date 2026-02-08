@@ -1,194 +1,380 @@
 import React, { useState, useEffect } from 'react'
 import './QuitPlan.css'
 
+// Типы продуктов с их характеристиками
+const PRODUCT_TYPES = {
+  cigarettes: {
+    name: '🚬 Сигареты',
+    unit: 'штук',
+    placeholder: 'Сигарет в день',
+    defaultDaily: 20,
+    range: [1, 100],
+    tips: 'Средний пакет имеет 20 сигарет'
+  },
+  iqos: {
+    name: '🍯 IQOS/Подики',
+    unit: 'стиков',
+    placeholder: 'Стиков в день',
+    defaultDaily: 15,
+    range: [1, 50],
+    tips: 'Примерно 10-20 стиков в дне - это средний уровень'
+  },
+  vape: {
+    name: '💨 Вейп',
+    unit: 'мл жидкости',
+    placeholder: 'Мл в день',
+    defaultDaily: 5,
+    range: [1, 30],
+    tips: 'Средний вейп использует 3-10мл в день'
+  },
+  glo: {
+    name: '🔥 Glo/Набиз',
+    unit: 'неостанков',
+    placeholder: 'Неостанков в день',
+    defaultDaily: 12,
+    range: [1, 40],
+    tips: 'Примерно 10-15 неостанков в день - это норма'
+  },
+  pipe: {
+    name: '🍂 Трубка/Трубочка',
+    unit: 'грамм',
+    placeholder: 'Грамм в день',
+    defaultDaily: 5,
+    range: [1, 30],
+    tips: 'Одна заправка - примерно 1-3 грамма'
+  },
+  snus: {
+    name: '🎒 Снюс/Насвай',
+    unit: 'саше',
+    placeholder: 'Саше в день',
+    defaultDaily: 10,
+    range: [1, 50],
+    tips: 'Саше обычно длится 30-60 минут'
+  }
+}
+
+// Умные вопросы для оценки потребления
+const CONSUMPTION_QUESTIONS = {
+  cigarettes: [
+    {
+      text: 'По скольку пачек в день? (пачка = 20 сиг)',
+      estimate: (answer) => Math.round(answer * 20)
+    },
+    {
+      text: 'Куришь больше по выходным?',
+      options: ['Да, значительно', 'Чуть больше', 'Примерно одинаково'],
+      adjust: (baseValue, idx) => baseValue * (1 + idx * 0.2)
+    },
+    {
+      text: 'Сколько примерно часов в день ты куришь?',
+      estimate: (hours) => Math.round((hours / 12) * 25) // примерно 1 сиг на 30 мин
+    }
+  ],
+  iqos: [
+    {
+      text: 'Сколько раз ты пользуешься в день?',
+      estimate: (times) => Math.round(times * 2)
+    },
+    {
+      text: 'Как долго длится твоя сессия?',
+      options: ['5 минут', '10 минут', '15+ минут'],
+      sticks: [1, 2, 3]
+    }
+  ]
+}
+
 export default function QuitPlan({ user, existingPlan, onSavePlan }) {
   const [step, setStep] = useState(0)
+  const [productType, setProductType] = useState('cigarettes')
+  const [knowledgeLevel, setKnowledgeLevel] = useState(null) // 'exact', 'approximate', 'unknown'
   const [formData, setFormData] = useState({
-    currentDaily: existingPlan?.currentDaily || 20,
-    yearsSmoked: existingPlan?.yearsSmoked || 5,
-    age: existingPlan?.age || 30,
-    goal: existingPlan?.goal || 'quit', // 'quit' или 'reduce'
-    reductionTarget: existingPlan?.reductionTarget || 50, // проценты если "reduce"
+    currentDaily: 20,
+    yearsConsuming: 5,
+    age: 30,
+    goal: 'quit',
+    reductionTarget: 50,
+    consumptionAnswers: []
   })
   const [calculatedPlan, setCalculatedPlan] = useState(null)
   const [saved, setSaved] = useState(false)
 
-  const STEPS = [
-    { title: '🚬 Сколько сигарет ты куришь в день?', key: 'currentDaily' },
-    { title: '📅 Как долго ты куришь?', key: 'yearsSmoked' },
-    { title: '👤 Твой возраст (опционально)', key: 'age' },
-    { title: '🎯 Какая твоя цель?', key: 'goal' },
-    { title: '✨ Твой план готов!' }
-  ]
+  const product = PRODUCT_TYPES[productType]
 
-  const calculatePlan = (data) => {
-    const dailyReduction = data.goal === 'quit' 
-      ? Math.ceil(data.currentDaily / 30) // 30 дней на отказ
-      : Math.ceil((data.currentDaily * data.reductionTarget / 100) / 30)
-
-    const durationType = data.yearsSmoked < 1 ? 'месяцев' : 'лет'
-    const durationValue = data.yearsSmoked < 1 ? Math.round(data.yearsSmoked * 12) : data.yearsSmoked
-
-    // Рассчётный стресс (больше лет курения = больше стресса)
-    const stressLevel = Math.min(data.yearsSmoked * 10, 100)
-
-    // Персонализированный совет
-    let advice = ''
-    if (stressLevel > 50) {
-      advice = 'У тебя солидный стаж курения, но ты сделал правильный выбор! 💪 Медитация и упражнения помогут справиться со стрессом.'
-    }
-    if (data.currentDaily > 30) {
-      advice = 'В начале будет нелегко, но системный подход - ключ успеха. 📊 Отслеживай прогресс каждый день!'
-    }
-    if (data.age && data.age < 25) {
-      advice = 'Молодого организму проще восстанавливаться! 🌱 Ты сможешь быстро заметить улучшения.'
-    }
-
-    const milestones = []
-    const startDate = new Date()
-
-    let currentDay = 0
-    let currentDailyAmount = data.currentDaily
-
-    while (currentDailyAmount > (data.goal === 'quit' ? 0 : data.currentDaily * (100 - data.reductionTarget) / 100)) {
-      currentDay += 7 // Контрольные точки раз в неделю
-      currentDailyAmount = Math.max(
-        data.goal === 'quit' ? 0 : data.currentDaily * (100 - data.reductionTarget) / 100,
-        data.currentDaily - (dailyReduction * (currentDay / 7))
-      )
-      const date = new Date(startDate.getTime() + currentDay * 24 * 60 * 60 * 1000)
-      milestones.push({
-        day: currentDay,
-        dailyAmount: Math.ceil(Math.max(0, currentDailyAmount)),
-        date: date.toLocaleDateString('ru-RU', { month: 'short', day: 'numeric' })
-      })
-    }
-
-    return {
-      ...data,
-      dailyReduction,
-      durationType,
-      durationValue,
-      stressLevel,
-      advice,
-      milestones: milestones.slice(0, 8), // Показываем первые 8 контрольных точек
-      completionDays: Math.ceil(data.currentDaily / dailyReduction),
-      healthGains: calculateHealthGains(data)
-    }
-  }
-
-  const calculateHealthGains = (data) => {
-    // За сколько дней/месяцев произойдут эти изменения после отказа
-    return [
-      { time: '2 часа', gain: 'Давление придёт в норму' },
-      { time: '24 часа', gain: 'CO выведется из организма' },
-      { time: '48 часов', gain: 'Восстановится обоняние и вкус' },
-      { time: '3 месяца', gain: 'Функция лёгких улучшится на 30%' },
-      { time: '1 год', gain: 'Риск инфаркта снизится вдвое' },
-      { time: '10 лет', gain: 'Риск рака лёгких как у некурящих' }
-    ]
-  }
-
-  const handleNext = () => {
-    if (step < STEPS.length - 1) {
-      setStep(step + 1)
-    }
-  }
-
-  const handleValueChange = (value) => {
-    setFormData(prev => ({
-      ...prev,
-      [STEPS[step].key]: value
-    }))
-  }
-
-  const handleReductionChange = (value) => {
-    setFormData(prev => ({
-      ...prev,
-      reductionTarget: value
-    }))
-  }
-
-  const generatePlan = () => {
-    const plan = calculatePlan(formData)
-    setCalculatedPlan(plan)
-  }
-
-  const savePlan = () => {
-    if (calculatedPlan) {
-      onSavePlan({
-        ...calculatedPlan,
-        createdAt: new Date().toISOString()
-      })
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-    }
-  }
-
-  const resetPlan = () => {
-    setStep(0)
-    setCalculatedPlan(null)
-    setFormData({
-      currentDaily: 20,
-      yearsSmoked: 5,
-      age: 30,
-      goal: 'quit',
-      reductionTarget: 50,
-    })
-  }
-
-  // Шаг 1: Количество сигарет в день
-  if (step === 0 && !calculatedPlan) {
+  // Шаг 1: Выбор типа продукта
+  if (step === 0) {
     return (
       <div className="quit-plan-container">
         <div className="plan-card glass">
-          <div className="plan-progress">
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: '25%' }}></div>
-            </div>
-            <span className="progress-text">1 из 5</span>
+          <div className="plan-header">
+            <h2>🎯 Выбери, от чего ты хочешь избавиться</h2>
+            <p>Это поможет нам дать точный рекомендации</p>
           </div>
 
-          <h2>🚬 Сколько сигарет ты куришь в день?</h2>
-          <p className="step-description">Точное число поможет создать реалистичный план</p>
-
-          <div className="input-group">
-            <input
-              type="range"
-              min="1"
-              max="60"
-              value={formData.currentDaily}
-              onChange={(e) => handleValueChange(parseInt(e.target.value))}
-              className="slider"
-            />
-            <div className="display-value">
-              <span className="big-number">{formData.currentDaily}</span>
-              <span className="unit">сигарет/день</span>
-            </div>
+          <div className="product-grid">
+            {Object.entries(PRODUCT_TYPES).map(([key, prod]) => (
+              <button
+                key={key}
+                className={`product-btn glass ${productType === key ? 'active' : ''}`}
+                onClick={() => {
+                  setProductType(key)
+                  setFormData(prev => ({
+                    ...prev,
+                    currentDaily: prod.defaultDaily
+                  }))
+                }}
+              >
+                <div className="product-icon">{prod.name.split(' ')[0]}</div>
+                <div className="product-name">{prod.name}</div>
+              </button>
+            ))}
           </div>
 
-          <button className="btn-next glass" onClick={handleNext}>
-            Дальше →
+          <button
+            className="btn-next glass"
+            onClick={() => setStep(1)}
+            style={{ marginTop: '24px' }}
+          >
+            Далее →
           </button>
         </div>
       </div>
     )
   }
 
-  // Шаг 2: Как долго куришь
-  if (step === 1 && !calculatedPlan) {
+  // Шаг 2: Определяем уровень знания потребления
+  if (step === 1 && !knowledgeLevel) {
     return (
       <div className="quit-plan-container">
         <div className="plan-card glass">
           <div className="plan-progress">
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: '50%' }}></div>
-            </div>
-            <span className="progress-text">2 из 5</span>
+            <span className="progress-text">1/4</span>
           </div>
 
-          <h2>📅 Как долго ты куришь?</h2>
-          <p className="step-description">Помогает оценить физическую зависимость</p>
+          <h2>📊 Сколько ты {product.unit}?</h2>
+          <p className="step-description">{product.tips}</p>
+
+          <div className="knowledge-buttons">
+            <button
+              className="knowledge-btn glass"
+              onClick={() => setKnowledgeLevel('exact')}
+            >
+              <div className="kb-icon">✓</div>
+              <div className="kb-title">Знаю точно</div>
+              <div className="kb-desc">Я отслеживаю и знаю точное число</div>
+            </button>
+            <button
+              className="knowledge-btn glass"
+              onClick={() => setKnowledgeLevel('approximate')}
+            >
+              <div className="kb-icon">≈</div>
+              <div className="kb-title">Примерно</div>
+              <div className="kb-desc">Расскажу примерно, выбрав из вариантов</div>
+            </button>
+            <button
+              className="knowledge-btn glass"
+              onClick={() => setKnowledgeLevel('unknown')}
+            >
+              <div className="kb-icon">?</div>
+              <div className="kb-title">Не знаю</div>
+              <div className="kb-desc">Ответлю на несколько вопросов, вы расчитаете</div>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Шаг 2b: Точное число
+  if (step === 1 && knowledgeLevel === 'exact') {
+    return (
+      <div className="quit-plan-container">
+        <div className="plan-card glass">
+          <div className="plan-progress">
+            <span className="progress-text">1/4</span>
+          </div>
+
+          <h2>📊 {product.placeholder}</h2>
+
+          <div className="input-group">
+            <input
+              type="range"
+              min={product.range[0]}
+              max={product.range[1]}
+              value={formData.currentDaily}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                currentDaily: parseInt(e.target.value)
+              }))}
+              className="slider"
+            />
+            <div className="display-value">
+              <span className="big-number">{formData.currentDaily}</span>
+              <span className="unit">{product.unit}/день</span>
+            </div>
+          </div>
+
+          <button
+            className="btn-next glass"
+            onClick={() => setStep(2)}
+            style={{ marginTop: '24px' }}
+          >
+            Далее →
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Шаг 2c: Приблизительно
+  if (step === 1 && knowledgeLevel === 'approximate') {
+    const presets = [
+      { label: 'Немного', value: product.defaultDaily * 0.5 },
+      { label: 'Средне', value: product.defaultDaily },
+      { label: 'Довольно много', value: product.defaultDaily * 1.5 },
+      { label: 'Очень много', value: product.defaultDaily * 2.5 }
+    ]
+
+    return (
+      <div className="quit-plan-container">
+        <div className="plan-card glass">
+          <div className="plan-progress">
+            <span className="progress-text">1/4</span>
+          </div>
+
+          <h2>📊 Выбери свой уровень потребления</h2>
+
+          <div className="preset-buttons">
+            {presets.map((preset, idx) => (
+              <button
+                key={idx}
+                className="preset-btn glass"
+                onClick={() => {
+                  setFormData(prev => ({
+                    ...prev,
+                    currentDaily: Math.round(preset.value)
+                  }))
+                  setStep(2)
+                }}
+              >
+                <div className="preset-label">{preset.label}</div>
+                <div className="preset-value">
+                  {Math.round(preset.value)} {product.unit}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <button
+            className="back-btn glass"
+            onClick={() => setKnowledgeLevel(null)}
+          >
+            ← Вернуться
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Шаг 2d: Не знаю - умные вопросы
+  if (step === 1 && knowledgeLevel === 'unknown') {
+    return (
+      <div className="quit-plan-container">
+        <div className="plan-card glass">
+          <div className="plan-progress">
+            <span className="progress-text">1/4</span>
+          </div>
+
+          <h2>💭 Помогу тебе вычислить</h2>
+          <p className="step-description">На основе ответов постараюсь оценить твоё потребление</p>
+
+          <div className="smart-questions">
+            {productType === 'cigarettes' && (
+              <>
+                <div className="question-group">
+                  <label>По скольку пачек (по 20 сигарет) в день?</label>
+                  <input
+                    type="number"
+                    min="0.5"
+                    max="10"
+                    step="0.5"
+                    value={formData.consumptionAnswers[0] || 1}
+                    onChange={(e) => {
+                      const packs = parseFloat(e.target.value)
+                      setFormData(prev => ({
+                        ...prev,
+                        currentDaily: Math.round(packs * 20),
+                        consumptionAnswers: [packs]
+                      }))
+                    }}
+                    placeholder="пачек"
+                  />
+                  <small>{formData.currentDaily} сигарет/день</small>
+                </div>
+
+                <div className="question-group">
+                  <label>Куришь больше по выходным или в стрессе?</label>
+                  <select
+                    onChange={(e) => {
+                      const mult = [1, 1.2, 1.5][e.target.value]
+                      setFormData(prev => ({
+                        ...prev,
+                        currentDaily: Math.round(prev.currentDaily * mult)
+                      }))
+                    }}
+                  >
+                    <option value="0">Примерно одинаково</option>
+                    <option value="1">Чуть больше</option>
+                    <option value="2">Значительно больше</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            {productType === 'iqos' && (
+              <div className="question-group">
+                <label>Сколько раз ты пользуешься в день?</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={formData.consumptionAnswers[0] || 10}
+                  onChange={(e) => {
+                    const times = parseInt(e.target.value)
+                    setFormData(prev => ({
+                      ...prev,
+                      currentDaily: Math.round(times * 1.5),
+                      consumptionAnswers: [times]
+                    }))
+                  }}
+                  placeholder="раз в день"
+                />
+                <small>{formData.currentDaily} стиков/день</small>
+              </div>
+            )}
+
+            <button
+              className="btn-next glass"
+              onClick={() => setStep(2)}
+              style={{ marginTop: '24px' }}
+            >
+              Далее →
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Шаг 3: Как долго потребляешь
+  if (step === 2) {
+    return (
+      <div className="quit-plan-container">
+        <div className="plan-card glass">
+          <div className="plan-progress">
+            <span className="progress-text">2/4</span>
+          </div>
+
+          <h2>📅 Как долго ты это потребляешь?</h2>
 
           <div className="input-group">
             <input
@@ -196,55 +382,25 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
               min="0.5"
               max="50"
               step="0.5"
-              value={formData.yearsSmoked}
-              onChange={(e) => handleValueChange(parseFloat(e.target.value))}
+              value={formData.yearsConsuming}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                yearsConsuming: parseFloat(e.target.value)
+              }))}
               className="slider"
             />
             <div className="display-value">
-              <span className="big-number">{formData.yearsSmoked}</span>
+              <span className="big-number">{formData.yearsConsuming}</span>
               <span className="unit">
-                {formData.yearsSmoked < 1 ? `${Math.round(formData.yearsSmoked * 12)} месяцев` : `${formData.yearsSmoked.toFixed(1)} лет`}
+                {formData.yearsConsuming < 1 
+                  ? `${Math.round(formData.yearsConsuming * 12)} месяцев` 
+                  : `${formData.yearsConsuming.toFixed(1)} лет`}
               </span>
             </div>
           </div>
 
-          <button className="btn-next glass" onClick={handleNext}>
-            Дальше →
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // Шаг 3: Возраст
-  if (step === 2 && !calculatedPlan) {
-    return (
-      <div className="quit-plan-container">
-        <div className="plan-card glass">
-          <div className="plan-progress">
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: '75%' }}></div>
-            </div>
-            <span className="progress-text">3 из 5</span>
-          </div>
-
-          <h2>👤 Твой возраст (опционально)</h2>
-          <p className="step-description">Помогает дать персонализированные советы</p>
-
-          <div className="input-group">
-            <input
-              type="number"
-              min="13"
-              max="120"
-              value={formData.age}
-              onChange={(e) => handleValueChange(parseInt(e.target.value))}
-              className="number-input"
-              placeholder="Введи возраст"
-            />
-          </div>
-
-          <button className="btn-next glass" onClick={handleNext}>
-            Дальше →
+          <button className="btn-next glass" onClick={() => setStep(3)}>
+            Далее →
           </button>
         </div>
       </div>
@@ -252,64 +408,116 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
   }
 
   // Шаг 4: Цель
-  if (step === 3 && !calculatedPlan) {
+  if (step === 3) {
     return (
       <div className="quit-plan-container">
         <div className="plan-card glass">
           <div className="plan-progress">
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: '90%' }}></div>
-            </div>
-            <span className="progress-text">4 из 5</span>
+            <span className="progress-text">3/4</span>
           </div>
 
           <h2>🎯 Какая твоя цель?</h2>
-          <p className="step-description">Выбери реалистичный путь для себя</p>
 
           <div className="goal-buttons">
             <button
               className={`goal-btn glass ${formData.goal === 'quit' ? 'active' : ''}`}
-              onClick={() => handleValueChange('quit')}
+              onClick={() => setFormData(prev => ({ ...prev, goal: 'quit' }))}
             >
               <div className="goal-icon">🚭</div>
               <div className="goal-title">Полный отказ</div>
-              <div className="goal-desc">Перестать курить совсем</div>
+              <div className="goal-desc">Перестать совсем</div>
             </button>
             <button
               className={`goal-btn glass ${formData.goal === 'reduce' ? 'active' : ''}`}
-              onClick={() => handleValueChange('reduce')}
+              onClick={() => setFormData(prev => ({ ...prev, goal: 'reduce' }))}
             >
               <div className="goal-icon">📉</div>
               <div className="goal-title">Снижение</div>
-              <div className="goal-desc">Постепенно снизить количество</div>
+              <div className="goal-desc">Постепенно сокращать</div>
             </button>
           </div>
 
           {formData.goal === 'reduce' && (
             <div className="reduction-target">
-              <label>На сколько процентов снизить за месяц?</label>
+              <label>На сколько % снизить за месяц?</label>
               <input
                 type="range"
                 min="10"
                 max="90"
                 step="10"
                 value={formData.reductionTarget}
-                onChange={(e) => handleReductionChange(parseInt(e.target.value))}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  reductionTarget: parseInt(e.target.value)
+                }))}
                 className="slider"
               />
               <div className="target-value">{formData.reductionTarget}%</div>
             </div>
           )}
 
-          <button className="btn-next glass" onClick={() => {
-            generatePlan()
-            handleNext()
-          }}>
+          <button
+            className="btn-next glass"
+            onClick={() => {
+              const plan = calculatePlan()
+              setCalculatedPlan(plan)
+              setStep(4)
+            }}
+          >
             Создать план →
           </button>
         </div>
       </div>
     )
+  }
+
+  // Функция расчёта плана
+  const calculatePlan = () => {
+    const dailyReduction = formData.goal === 'quit'
+      ? Math.ceil(formData.currentDaily / 30)
+      : Math.ceil((formData.currentDaily * formData.reductionTarget / 100) / 30)
+
+    const stressLevel = formData.yearsConsuming * 10
+
+    let advice = 'Отлично, что ты решил(а) бросить! 💪'
+    if (stressLevel > 50) {
+      advice += ' У тебя большой стаж, но это означает, что ты сильный(ая) человек. Упражнения помогут.'
+    }
+    if (formData.currentDaily > product.defaultDaily * 2) {
+      advice += ' Начни с небольших шагов - медленно, но уверенно!'
+    }
+
+    const milestones = []
+    let currentDay = 0
+    let currentAmount = formData.currentDaily
+
+    while (currentAmount > (formData.goal === 'quit' ? 0 : formData.currentDaily * (100 - formData.reductionTarget) / 100)) {
+      currentDay += 7
+      currentAmount = Math.max(
+        formData.goal === 'quit' ? 0 : formData.currentDaily * (100 - formData.reductionTarget) / 100,
+        formData.currentDaily - (dailyReduction * (currentDay / 7))
+      )
+      const date = new Date()
+      date.setDate(date.getDate() + currentDay)
+      milestones.push({
+        day: currentDay,
+        amount: Math.ceil(Math.max(0, currentAmount)),
+        date: date.toLocaleDateString('ru-RU', { month: 'short', day: 'numeric' })
+      })
+
+      if (milestones.length >= 12) break
+    }
+
+    return {
+      ...formData,
+      productType,
+      product,
+      dailyReduction,
+      advice,
+      completionDays: Math.ceil(formData.currentDaily / dailyReduction),
+      milestones: milestones.slice(0, 8),
+      createdAt: new Date().toISOString()
+    }
   }
 
   // Финальный план
@@ -319,84 +527,60 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
         <div className="plan-card glass full-plan">
           <div className="plan-header">
             <h2>✨ Твой персональный план</h2>
-            <p>Создан специально для тебя на основе твоей ситуации</p>
+            <p>Специально для тебя на основе твоих данных</p>
           </div>
 
-          {saved && <div className="saved-notification">✅ План сохранён в профиль!</div>}
+          {saved && <div className="saved-notification">✅ План сохранён!</div>}
 
-          {/* Основная информация */}
           <div className="plan-summary">
             <div className="summary-item">
-              <div className="label">Текущее потребление</div>
-              <div className="value">{calculatedPlan.currentDaily} сигарет/день</div>
+              <div className="label">Тип</div>
+              <div className="value">{calculatedPlan.product.name}</div>
             </div>
             <div className="summary-item">
-              <div className="label">Ежедневное снижение</div>
-              <div className="value">{calculatedPlan.dailyReduction} сигарет/день</div>
+              <div className="label">Потребление</div>
+              <div className="value">{calculatedPlan.currentDaily} {product.unit}/день</div>
             </div>
             <div className="summary-item">
-              <div className="label">Ожидаемый срок</div>
+              <div className="label">Срок</div>
               <div className="value">{calculatedPlan.completionDays} дней</div>
             </div>
             <div className="summary-item">
-              <div className="label">Цель</div>
-              <div className="value">
-                {calculatedPlan.goal === 'quit' 
-                  ? '🚭 Полный отказ' 
-                  : `📉 -${calculatedPlan.reductionTarget}% (${Math.ceil(calculatedPlan.currentDaily * (100 - calculatedPlan.reductionTarget) / 100)} сигарет)`}
-              </div>
+              <div className="label">Снижение</div>
+              <div className="value">-{calculatedPlan.dailyReduction} {product.unit}/день</div>
             </div>
           </div>
 
-          {/* Совет */}
-          {calculatedPlan.advice && (
-            <div className="advice-box">
-              <p>{calculatedPlan.advice}</p>
-            </div>
-          )}
+          <div className="advice-box">
+            <p>💡 {calculatedPlan.advice}</p>
+          </div>
 
-          {/* Контрольные точки */}
           <div className="milestones-section">
             <h3>📊 Твой путь к цели</h3>
-            <div className="milestones-timeline">
+            <div className="milestones">
               {calculatedPlan.milestones.map((m, idx) => (
                 <div key={idx} className="milestone">
-                  <div className="milestone-marker"></div>
-                  <div className="milestone-content">
-                    <div className="milestone-day">Неделя {Math.ceil(m.day / 7)}</div>
-                    <div className="milestone-amount">{m.dailyAmount} сигарет/день</div>
-                  </div>
+                  <div className="week">W{(m.day / 7)}</div>
+                  <div className="amount">{m.amount} {product.unit}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Положительные результаты */}
-          <div className="health-gains-section">
-            <h3>🏥 Что ты получишь, отказавшись</h3>
-            <div className="health-gains">
-              {calculatedPlan.healthGains.map((gain, idx) => (
-                <div key={idx} className="health-gain">
-                  <div className="time">{gain.time}</div>
-                  <div className="gain">{gain.gain}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Действия */}
           <div className="plan-actions">
-            <button className="btn-save glass" onClick={savePlan}>
-              💾 Сохранить в профиль
-            </button>
-            <button className="btn-reset glass" onClick={resetPlan}>
-              🔄 Переделать план
+            <button
+              className="btn-save glass"
+              onClick={() => {
+                onSavePlan(calculatedPlan)
+                setSaved(true)
+                setTimeout(() => setSaved(false), 2000)
+              }}
+            >
+              💾 Сохранить план
             </button>
           </div>
         </div>
       </div>
     )
   }
-
-  return null
 }

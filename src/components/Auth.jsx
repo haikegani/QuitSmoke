@@ -67,19 +67,28 @@ export default function Auth({ onLogin, theme, onThemeChange }) {
           id: Date.now().toString(),
           email,
           password, // Note: In production, NEVER store plain password - hash it server-side
+          username: '',
+          avatar: null,
+          avatarColor: '#667eea',
+          bio: '',
           createdAt: new Date().toISOString()
         }
         users.push(newUser)
         localStorage.setItem('qs_users', JSON.stringify(users))
+        // Также сохраняем профиль отдельно для быстрого доступа
+        localStorage.setItem(`qs_user_${newUser.id}`, JSON.stringify(newUser))
         
         setTimeout(() => {
           onLogin({
             id: newUser.id,
-            email: newUser.email
+            email: newUser.email,
+            username: newUser.username,
+            avatar: newUser.avatar,
+            avatarColor: newUser.avatarColor
           })
         }, 500)
       } else {
-        // Login
+        // Login - проверяем сохранённые данные
         const users = JSON.parse(localStorage.getItem('qs_users') || '[]')
         const user = users.find(u => u.email === email && u.password === password)
 
@@ -89,10 +98,16 @@ export default function Auth({ onLogin, theme, onThemeChange }) {
           return
         }
 
+        // Убедимся что данные сохранены как профиль
+        localStorage.setItem(`qs_user_${user.id}`, JSON.stringify(user))
+
         setTimeout(() => {
           onLogin({
             id: user.id,
-            email: user.email
+            email: user.email,
+            username: user.username || '',
+            avatar: user.avatar || null,
+            avatarColor: user.avatarColor || '#667eea'
           })
         }, 500)
       }
