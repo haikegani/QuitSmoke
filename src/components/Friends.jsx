@@ -1,25 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import './Friends.css'
 
-export default function Friends({ 
-  friends = [], 
-  friendRequests = [],
-  onAddFriend = () => {}, 
-  onAcceptRequest = () => {},
-  onDeclineRequest = () => {},
-  onRemoveFriend = () => {}, 
-  user = {} 
-}) {
+export default function Friends({ user = {}, onStartChat = () => {} }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [allUsers, setAllUsers] = useState([])
+  const [selectedUser, setSelectedUser] = useState(null)
   const [searchMode, setSearchMode] = useState('username')
-
-  // Убедимся, что friends - это массив
-  const friendsList = Array.isArray(friends) ? friends : []
-  const requestsList = Array.isArray(friendRequests) ? friendRequests : []
 
   useEffect(() => {
     if (!user || !user.id) return
@@ -34,9 +21,7 @@ export default function Friends({
           if (userData && userData.id !== user.id) {
             users.push(userData)
           }
-        } catch (e) {
-          // Пропустить неверные записи
-        }
+        } catch (e) {}
       }
     }
     setAllUsers(users)
@@ -44,8 +29,7 @@ export default function Friends({
 
   const handleSearch = (query) => {
     setSearchQuery(query)
-    setError('')
-    setSuccess('')
+    setSelectedUser(null)
 
     if (!query.trim()) {
       setSearchResults([])
@@ -62,105 +46,76 @@ export default function Friends({
       } else {
         return email.includes(q)
       }
-    }).filter(u => !friendsList.find(f => f.email === u.email))
+    })
 
     setSearchResults(results)
   }
 
-  const handleAdd = (foundUser) => {
-    if (!foundUser || !foundUser.email) return
-
-    if (friendsList.find(f => f.email === foundUser.email)) {
-      setError('Этот пользователь уже в друзьях')
-      setTimeout(() => setError(''), 3000)
-      return
-    }
-
-    // Передаём полный объект пользователя
-    onAddFriend({
-      id: foundUser.id || Date.now().toString(),
-      email: foundUser.email,
-      name: foundUser.username || foundUser.email.split('@')[0],
-      username: foundUser.username,
-      avatar: foundUser.avatar || null,
-      avatarColor: foundUser.avatarColor || '#667eea',
-      addedAt: new Date().toISOString()
-    })
-    
-    setSearchQuery('')
-    setSearchResults([])
-    setSuccess(`${foundUser.username || foundUser.email.split('@')[0]} добавлен в друзья! 🎉`)
-    setTimeout(() => setSuccess(''), 3000)
-  }
-
-  const handleRemove = (friendId) => {
-    if (onRemoveFriend && typeof onRemoveFriend === 'function') {
-      onRemoveFriend(friendId)
+  const handleStartChat = (targetUser) => {
+    if (onStartChat) {
+      onStartChat(targetUser)
     }
   }
 
-  const handleAccept = (requestId) => {
-    if (onAcceptRequest && typeof onAcceptRequest === 'function') {
-      onAcceptRequest(requestId)
-      setSuccess('Заявка принята! 🎉')
-      setTimeout(() => setSuccess(''), 2000)
-    }
-  }
+  if (selectedUser) {
+    return (
+      <div className="friends-container">
+        <div className="profile-view glass">
+          <button className="btn-back" onClick={() => setSelectedUser(null)}>
+            ← Назад
+          </button>
 
-  const handleDecline = (requestId) => {
-    if (onDeclineRequest && typeof onDeclineRequest === 'function') {
-      onDeclineRequest(requestId)
-      setSuccess('Заявка отклонена')
-      setTimeout(() => setSuccess(''), 2000)
-    }
+          <div className="user-profile">
+            <div className="profile-avatar" style={{
+              background: selectedUser.avatarColor || '#667eea'
+            }}>
+              {(selectedUser.username || selectedUser.email.split('@')[0])
+                .slice(0, 2)
+                .toUpperCase()}
+            </div>
+
+            <div className="profile-info">
+              <h2>{selectedUser.username || selectedUser.email.split('@')[0]}</h2>
+              <p className="profile-email">{selectedUser.email}</p>
+              
+              {selectedUser.status && (
+                <p className="profile-status">📝 {selectedUser.status}</p>
+              )}
+
+              <div className="profile-stats">
+                <div className="stat">
+                  <span className="stat-label">Статус</span>
+                  <span className="stat-value online">🟢 Онлайн</span>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              className="btn-message"
+              onClick={() => {
+                handleStartChat(selectedUser)
+                setSelectedUser(null)
+                setSearchQuery('')
+                setSearchResults([])
+              }}
+            >
+              💬 Написать сообщение
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="friends-container">
-      {/* Заявки в друзья */}
-      {requestsList.length > 0 && (
-        <div className="friend-requests">
-          <h2>📬 Заявки в друзья ({requestsList.length})</h2>
-          <div className="requests-list">
-            {requestsList.map(request => (
-              <div key={request.id} className="request-item">
-                <div className="request-info">
-                  <div className="request-avatar">
-                    {request.fromUsername.slice(0, 1).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="request-from">{request.fromUsername}</div>
-                    <div className="request-email">{request.fromEmail}</div>
-                  </div>
-                </div>
-                <div className="request-buttons">
-                  <button 
-                    className="btn-accept"
-                    onClick={() => handleAccept(request.id)}
-                  >
-                    ✓ Принять
-                  </button>
-                  <button 
-                    className="btn-decline"
-                    onClick={() => handleDecline(request.id)}
-                  >
-                    ✕ Отклонить
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <div className="friends-search glass">
+        <h2>🔍 Найти людей</h2>
 
-      {/* Поиск и добавление друзей */}
-      <div className="friends-search">
-        <h2>👥 Найти друзей</h2>
-
-        {/* Кнопки режима поиска */}
+        {/* Режимы поиска */}
         <div className="search-mode-toggle">
           <button
-            className={searchMode === 'username' ? 'active' : ''}
+            className={searchMode === 'username' ? 'mode-btn active' : 'mode-btn'}
             onClick={() => {
               setSearchMode('username')
               setSearchQuery('')
@@ -170,7 +125,7 @@ export default function Friends({
             По юзернейму
           </button>
           <button
-            className={searchMode === 'email' ? 'active' : ''}
+            className={searchMode === 'email' ? 'mode-btn active' : 'mode-btn'}
             onClick={() => {
               setSearchMode('email')
               setSearchQuery('')
@@ -181,7 +136,7 @@ export default function Friends({
           </button>
         </div>
 
-        {/* Поле ввода поиска */}
+        {/* Поле поиска */}
         <input
           type="text"
           placeholder={
@@ -193,106 +148,60 @@ export default function Friends({
           onChange={(e) => handleSearch(e.target.value)}
           className="search-input"
         />
+      </div>
 
-        {/* Результаты поиска */}
-        {searchResults.length > 0 && (
-          <div className="search-results">
-            <div className="results-count">
-              {searchResults.length} результат{searchResults.length !== 1 ? 'ов' : ''}
+      {/* Результаты поиска */}
+      {searchResults.length > 0 && (
+        <div className="search-results glass">
+          <div className="results-count">
+            {searchResults.length} результат{searchResults.length !== 1 ? 'ов' : ''}
+          </div>
+          {searchResults.map(u => (
+            <div
+              key={u.id}
+              className="search-result-item"
+              onClick={() => setSelectedUser(u)}
+            >
+              <div className="user-info">
+                <div
+                  className="user-avatar-mini"
+                  style={{
+                    background: u.avatarColor || '#667eea'
+                  }}
+                >
+                  <span className="avatar-text">
+                    {(u.username || u.email.split('@')[0])
+                      .slice(0, 1)
+                      .toUpperCase()}
+                  </span>
+                </div>
+                <div className="user-details">
+                  <div className="user-username">
+                    {u.username || u.email.split('@')[0]}
+                  </div>
+                  <div className="user-email">{u.email}</div>
+                </div>
+                <div className="user-status">🟢</div>
+              </div>
             </div>
-            {searchResults.map(u => (
-              <div key={u.id} className="search-result-item">
-                <div className="user-info">
-                  <div
-                    className="user-avatar-mini"
-                    style={{
-                      background: u.avatar 
-                        ? `url('${u.avatar}') center/cover`
-                        : `linear-gradient(135deg, ${u.avatarColor || '#667eea'}, ${u.avatarColor || '#667eea'}dd)`
-                    }}
-                  >
-                    {!u.avatar && (
-                      <span className="avatar-text">
-                        {(u.username || u.email.split('@')[0])
-                          .slice(0, 1)
-                          .toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div className="user-details">
-                    <div className="user-username">
-                      {u.username || u.email.split('@')[0]}
-                    </div>
-                    <div className="user-email">{u.email}</div>
-                  </div>
-                </div>
-                <button
-                  className="add-btn"
-                  onClick={() => handleAdd(u)}
-                >
-                  + Добавить
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+          ))}
+        </div>
+      )}
 
-        {/* Сообщения об ошибках/успехе */}
-        {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
-      </div>
+      {searchQuery && searchResults.length === 0 && (
+        <div className="empty-state glass">
+          <div className="empty-icon">🔍</div>
+          <p>Никого не найдено</p>
+        </div>
+      )}
 
-      {/* Список друзей */}
-      <div className="friends-list">
-        <h2>🤝 Мои друзья ({friendsList.length})</h2>
-
-        {friendsList.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">🤔</div>
-            <p>У тебя еще нет друзей</p>
-            <p className="muted">Добавь друзей для взаимной поддержки!</p>
-          </div>
-        ) : (
-          <div className="friends-grid">
-            {friendsList.map((friend) => (
-              <div key={friend.id || friend.email} className="friend-card glass">
-                <div className="friend-avatar">
-                  {friend.avatar ? (
-                    <img 
-                      src={friend.avatar} 
-                      alt={friend.name || friend.email}
-                      className="avatar-image"
-                    />
-                  ) : (
-                    <div
-                      className="avatar-fallback"
-                      style={{
-                        background: `linear-gradient(135deg, ${
-                          friend.avatarColor || '#667eea'
-                        }, ${friend.avatarColor || '#667eea'}dd)`
-                      }}
-                    >
-                      {(friend.name || friend.email.split('@')[0])
-                        .slice(0, 2)
-                        .toUpperCase()}
-                    </div>
-                  )}
-                </div>
-                <div className="friend-name">
-                  {friend.name || friend.email.split('@')[0]}
-                </div>
-                <div className="friend-email">{friend.email}</div>
-                <button
-                  onClick={() => handleRemove(friend.id)}
-                  className="btn-remove"
-                >
-                  ✕ Удалить
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {!searchQuery && (
+        <div className="empty-state glass">
+          <div className="empty-icon">👥</div>
+          <p>Начни поиск чтобы найти людей</p>
+          <p className="muted">Найди интересного человека и напиши ему!</p>
+        </div>
+      )}
     </div>
   )
 }

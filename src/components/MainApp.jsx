@@ -12,16 +12,7 @@ import './MainApp.css'
 export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdateUser }) {
   const [activeTab, setActiveTab] = useState('feed')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [friends, setFriends] = useState(() => {
-    const stored = localStorage.getItem(`qs_friends_${user.id}`)
-    return stored ? JSON.parse(stored) : []
-  })
-
-  const [friendRequests, setFriendRequests] = useState(() => {
-    const stored = localStorage.getItem(`qs_friend_requests_${user.id}`)
-    return stored ? JSON.parse(stored) : []
-  })
-
+  
   const [puffCount, setPuffCount] = useState(() => {
     const stored = localStorage.getItem(`qs_puffs_${user.id}`)
     return stored ? JSON.parse(stored) : {}
@@ -37,104 +28,9 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
     }
   })
 
-  // Авто-обновление заявок и друзей
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const stored = localStorage.getItem(`qs_friend_requests_${user.id}`)
-      const newRequests = stored ? JSON.parse(stored) : []
-      setFriendRequests(newRequests)
-      
-      const storedFriends = localStorage.getItem(`qs_friends_${user.id}`)
-      const newFriends = storedFriends ? JSON.parse(storedFriends) : []
-      setFriends(newFriends)
-    }, 500)
-    return () => clearInterval(interval)
-  }, [user.id])
-
-  const sendFriendRequest = (toUser) => {
-    if (friends.find(f => f.email === toUser.email)) {
-      alert('Этот пользователь уже в друзьях')
-      return
-    }
-    if (friendRequests.find(r => r.to === toUser.id)) {
-      alert('Заявка уже отправлена')
-      return
-    }
-    
-    // Создаём заявку
-    const request = {
-      id: Date.now().toString(),
-      from: user.id,
-      fromEmail: user.email,
-      fromUsername: user.username || user.email.split('@')[0],
-      to: toUser.id,
-      toEmail: toUser.email,
-      sent: new Date().toISOString()
-    }
-    
-    // Сохраняем заявку локально
-    const newRequests = [...friendRequests, request]
-    setFriendRequests(newRequests)
-    localStorage.setItem(`qs_friend_requests_${user.id}`, JSON.stringify(newRequests))
-    
-    // Отправляем заявку получателю
-    const toUserRequestsKey = `qs_friend_requests_${toUser.id}`
-    const toUserRequests = localStorage.getItem(toUserRequestsKey)
-    const toUserRequestsList = toUserRequests ? JSON.parse(toUserRequests) : []
-    toUserRequestsList.push(request)
-    localStorage.setItem(toUserRequestsKey, JSON.stringify(toUserRequestsList))
-  }
-
-  const acceptFriendRequest = (requestId) => {
-    const request = friendRequests.find(r => r.id === requestId)
-    if (!request) return
-    
-    // Добавляем в друзья
-    const newFriend = {
-      id: request.from,
-      email: request.fromEmail,
-      name: request.fromUsername,
-      username: request.fromUsername,
-      addedAt: new Date().toISOString()
-    }
-    
-    const updatedFriends = [...friends, newFriend]
-    setFriends(updatedFriends)
-    localStorage.setItem(`qs_friends_${user.id}`, JSON.stringify(updatedFriends))
-    
-    // Удаляем заявку
-    const updatedRequests = friendRequests.filter(r => r.id !== requestId)
-    setFriendRequests(updatedRequests)
-    localStorage.setItem(`qs_friend_requests_${user.id}`, JSON.stringify(updatedRequests))
-    
-    // Также добавляем текущего пользователя в друзья отправителю заявки
-    const fromUserFriendsKey = `qs_friends_${request.from}`
-    const fromUserFriends = localStorage.getItem(fromUserFriendsKey)
-    const fromUserFriendsList = fromUserFriends ? JSON.parse(fromUserFriends) : []
-    fromUserFriendsList.push({
-      id: user.id,
-      email: user.email,
-      name: user.username || user.email.split('@')[0],
-      username: user.username,
-      addedAt: new Date().toISOString()
-    })
-    localStorage.setItem(fromUserFriendsKey, JSON.stringify(fromUserFriendsList))
-  }
-
-  const declineFriendRequest = (requestId) => {
-    const updatedRequests = friendRequests.filter(r => r.id !== requestId)
-    setFriendRequests(updatedRequests)
-    localStorage.setItem(`qs_friend_requests_${user.id}`, JSON.stringify(updatedRequests))
-  }
-
-  const addFriend = (friendObj) => {
-    sendFriendRequest(friendObj)
-  }
-
-  const removeFriend = (friendId) => {
-    const updated = friends.filter(f => f.id !== friendId)
-    setFriends(updated)
-    localStorage.setItem(`qs_friends_${user.id}`, JSON.stringify(updated))
+  // Обработчик для запуска чата с пользователем
+  const handleStartChat = (targetUser) => {
+    setActiveTab('chats')
   }
 
   const addPuff = () => {
@@ -189,23 +85,18 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
           />
         )}
         {activeTab === 'posts' && (
-          <Posts user={user} friends={friends} />
+          <Posts user={user} friends={[]} />
         )}
         {activeTab === 'channels' && (
           <Channels user={user} />
         )}
         {activeTab === 'chats' && (
-          <Chats user={user} friends={friends} />
+          <Chats user={user} friends={[]} />
         )}
         {activeTab === 'friends' && (
           <Friends
-            friends={friends}
-            friendRequests={friendRequests}
-            onAddFriend={addFriend}
-            onAcceptRequest={acceptFriendRequest}
-            onDeclineRequest={declineFriendRequest}
-            onRemoveFriend={removeFriend}
             user={user}
+            onStartChat={handleStartChat}
           />
         )}
         {activeTab === 'profile' && (
