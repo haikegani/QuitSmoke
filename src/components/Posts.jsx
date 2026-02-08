@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import './Posts.css'
 
+const REACTIONS = ['❤️', '😂', '😃', '😍', '🎉', '💪', '😢', '🔥']
+
 export default function Posts({ user, friends }) {
   const [posts, setPosts] = useState(() => {
     const stored = localStorage.getItem('qs_posts')
@@ -8,7 +10,7 @@ export default function Posts({ user, friends }) {
   })
 
   const [newPost, setNewPost] = useState('')
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [activeReactionPanel, setActiveReactionPanel] = useState(null)
 
   const addPost = () => {
     if (!newPost.trim()) return
@@ -18,11 +20,10 @@ export default function Posts({ user, friends }) {
       userId: user.id,
       username: user.username || user.email.split('@')[0],
       userEmail: user.email,
-      avatar: (user.username || user.email).slice(0, 2).toUpperCase(),
+      avatar: user.avatarColor || '#667eea',
       content: newPost,
       timestamp: new Date().toISOString(),
-      likes: 0,
-      liked: false
+      reactions: {} // {emoji: [userId1, userId2, ...]}
     }
 
     const updated = [post, ...posts]
@@ -31,19 +32,26 @@ export default function Posts({ user, friends }) {
     setNewPost('')
   }
 
-  const toggleLike = (postId) => {
+  const addReaction = (postId, emoji) => {
     const updated = posts.map(p => {
       if (p.id === postId) {
-        return {
-          ...p,
-          liked: !p.liked,
-          likes: p.liked ? p.likes - 1 : p.likes + 1
+        const reactions = { ...p.reactions }
+        if (!reactions[emoji]) reactions[emoji] = []
+        
+        if (reactions[emoji].includes(user.id)) {
+          reactions[emoji] = reactions[emoji].filter(id => id !== user.id)
+          if (reactions[emoji].length === 0) delete reactions[emoji]
+        } else {
+          reactions[emoji].push(user.id)
         }
+        
+        return { ...p, reactions }
       }
       return p
     })
     setPosts(updated)
     localStorage.setItem('qs_posts', JSON.stringify(updated))
+    setActiveReactionPanel(null)
   }
 
   const deletePost = (postId) => {
@@ -123,12 +131,38 @@ export default function Posts({ user, friends }) {
               <div className="post-content">{post.content}</div>
 
               <div className="post-footer">
-                <button
-                  className={`like-btn ${post.liked ? 'liked' : ''}`}
-                  onClick={() => toggleLike(post.id)}
-                >
-                  {post.liked ? '❤️' : '🤍'} {post.likes > 0 && post.likes}
-                </button>
+                <div className="reactions">
+                  {Object.entries(post.reactions || {}).map(([emoji, users]) => (
+                    <button
+                      key={emoji}
+                      className={`reaction-btn ${users.includes(user.id) ? 'active' : ''}`}
+                      onClick={() => addReaction(post.id, emoji)}
+                      title={emoji}
+                    >
+                      {emoji} <span>{users.length}</span>
+                    </button>
+                  ))}
+                  <button
+                    className="add-reaction-btn"
+                    onClick={() => setActiveReactionPanel(activeReactionPanel === post.id ? null : post.id)}
+                  >
+                    😊
+                  </button>
+                </div>
+
+                {activeReactionPanel === post.id && (
+                  <div className="reaction-panel">
+                    {REACTIONS.map(emoji => (
+                      <button
+                        key={emoji}
+                        className="reaction-option"
+                        onClick={() => addReaction(post.id, emoji)}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </article>
           ))

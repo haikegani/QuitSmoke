@@ -1,8 +1,12 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState } from 'react'
+import Sidebar from './Sidebar'
 import Feed from './Feed'
 import Friends from './Friends'
 import Profile from './Profile'
 import Posts from './Posts'
+import Channels from './Channels'
+import Chats from './Chats'
+import Settings from './Settings'
 import './MainApp.css'
 
 export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdateUser }) {
@@ -27,30 +31,15 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
     }
   })
 
-  const getThemeLabel = () => {
-    if (theme === 'auto') return 'Авто'
-    if (theme === 'dark') return '◐'
-    return '◑'
-  }
-
-  const cycleTheme = () => {
-    const next = theme === 'auto' ? 'dark' : (theme === 'dark' ? 'light' : 'auto')
-    onThemeChange(next)
-  }
-
-  const addFriend = (email) => {
-    if (email === user.email) {
-      alert('Не можешь добавить себя в друзья')
-      return
-    }
-    if (friends.find(f => f.email === email)) {
+  const addFriend = (input) => {
+    if (friends.find(f => f.email === input)) {
       alert('Этот друг уже добавлен')
       return
     }
     const newFriend = {
       id: Date.now().toString(),
-      email,
-      name: email.split('@')[0],
+      email: input,
+      name: input.includes('@') ? input.split('@')[0] : input,
       addedAt: new Date().toISOString()
     }
     const updated = [...friends, newFriend]
@@ -82,45 +71,11 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
 
   return (
     <div className="main-app">
-      <header className="app-header">
-        <div className="app-avatar">
-          {user.email.slice(0, 2).toUpperCase()}
-        </div>
-        <div className="app-header-title">
-          <div>QuitSmoke</div>
-          <div className="muted" style={{ fontSize: '12px' }}>@{user.email}</div>
-        </div>
-        <button className="theme-btn-mini" onClick={cycleTheme}>
-          {getThemeLabel()}
-        </button>
-      </header>
-
-      <nav className="app-tabs">
-        <button
-          className={`tab-btn ${activeTab === 'feed' ? 'active' : ''}`}
-          onClick={() => setActiveTab('feed')}
-        >
-          🔥 Лента
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`}
-          onClick={() => setActiveTab('posts')}
-        >
-          💬 Посты
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'friends' ? 'active' : ''}`}
-          onClick={() => setActiveTab('friends')}
-        >
-          👥 Друзья
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
-          onClick={() => setActiveTab('profile')}
-        >
-          ⚙️ Профиль
-        </button>
-      </nav>
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        user={user}
+      />
 
       <main className="app-content">
         {activeTab === 'feed' && (
@@ -134,6 +89,12 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
         )}
         {activeTab === 'posts' && (
           <Posts user={user} friends={friends} />
+        )}
+        {activeTab === 'channels' && (
+          <Channels user={user} />
+        )}
+        {activeTab === 'chats' && (
+          <Chats user={user} friends={friends} />
         )}
         {activeTab === 'friends' && (
           <Friends
@@ -150,6 +111,15 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
             onUpdatePlan={setQuitPlan}
             puffCount={puffCount}
             onUpdateUser={onUpdateUser}
+          />
+        )}
+        {activeTab === 'settings' && (
+          <Settings
+            user={user}
+            onUpdateUser={onUpdateUser}
+            onLogout={handleLogout}
+            theme={theme}
+            onThemeChange={onThemeChange}
           />
         )}
       </main>

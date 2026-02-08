@@ -231,34 +231,119 @@
   border-top-color: rgba(255, 255, 255, 0.06);
 }
 
-.like-btn {
-  background: transparent;
-  border: none;
-  color: var(--muted-light);
+.reactions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  position: relative;
+}
+
+.reaction-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--text-light);
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 16px;
+  font-size: 13px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0;
-  transition: color 0.2s;
+  gap: 4px;
+  transition: all 0.2s;
+  font-weight: 600;
 }
 
-.dark-theme .like-btn {
-  color: var(--muted-dark);
-}
-
-.like-btn.liked {
-  color: #ef4444;
-}
-
-.like-btn:hover {
-  color: var(--text-light);
-}
-
-.dark-theme .like-btn:hover {
+.dark-theme .reaction-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
   color: var(--text-dark);
+}
+
+.reaction-btn.active {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: #667eea;
+}
+
+.dark-theme .reaction-btn.active {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: var(--accent-dark);
+}
+
+.reaction-btn:hover {
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.add-reaction-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--text-light);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+
+.dark-theme .add-reaction-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-dark);
+}
+
+.add-reaction-btn:hover {
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.reaction-panel {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  margin-bottom: 8px;
+}
+
+.dark-theme .reaction-panel {
+  background: #1a1a2e;
+  border-color: #333;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.reaction-option {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dark-theme .reaction-option {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.reaction-option:hover {
+  background: rgba(102, 126, 234, 0.2);
+  transform: scale(1.15);
 }
 
 @media (max-width: 480px) {
