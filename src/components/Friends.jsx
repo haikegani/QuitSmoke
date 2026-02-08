@@ -13,18 +13,77 @@ export default function Friends({ user = {}, onStartChat = () => {} }) {
     
     // Загрузить всех зарегистрированных пользователей
     const users = []
+    
+    // Ищем в qs_user_ префиксе
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)
       if (key && key.startsWith('qs_user_')) {
         try {
           const userData = JSON.parse(localStorage.getItem(key))
-          if (userData && userData.id !== user.id) {
+          if (userData && userData.id !== user.id && userData.email) {
             users.push(userData)
           }
-        } catch (e) {}
+        } catch (e) {
+          console.error('Error parsing user:', key, e)
+        }
       }
     }
+    
+    // Также ищем в qs_users массиве (на случай если там хранятся)
+    try {
+      const allUsers = JSON.parse(localStorage.getItem('qs_users') || '[]')
+      if (Array.isArray(allUsers)) {
+        allUsers.forEach(u => {
+          if (u && u.id !== user.id && u.email && !users.find(x => x.id === u.id)) {
+            users.push(u)
+          }
+        })
+      }
+    } catch (e) {
+      console.error('Error loading qs_users:', e)
+    }
+    
+    console.log('Loaded users:', users.length)
     setAllUsers(users)
+  }, [user?.id])
+
+  // Проверяем наличие новых пользователей каждые секунду
+  useEffect(() => {
+    if (!user || !user.id) return
+    
+    const interval = setInterval(() => {
+      const users = []
+      const loadedIds = new Set()
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith('qs_user_')) {
+          try {
+            const userData = JSON.parse(localStorage.getItem(key))
+            if (userData && userData.id !== user.id && userData.email && !loadedIds.has(userData.id)) {
+              users.push(userData)
+              loadedIds.add(userData.id)
+            }
+          } catch (e) {}
+        }
+      }
+      
+      try {
+        const allUsers = JSON.parse(localStorage.getItem('qs_users') || '[]')
+        if (Array.isArray(allUsers)) {
+          allUsers.forEach(u => {
+            if (u && u.id !== user.id && u.email && !loadedIds.has(u.id)) {
+              users.push(u)
+              loadedIds.add(u.id)
+            }
+          })
+        }
+      } catch (e) {}
+      
+      setAllUsers(users)
+    }, 1000)
+    
+    return () => clearInterval(interval)
   }, [user?.id])
 
   const handleSearch = (query) => {
@@ -36,18 +95,25 @@ export default function Friends({ user = {}, onStartChat = () => {} }) {
       return
     }
 
+    const q = query.toLowerCase().trim()
+    console.log('Searching for:', q, 'in', allUsers.length, 'users')
+    
     const results = allUsers.filter(u => {
       const username = (u.username || u.email.split('@')[0]).toLowerCase()
-      const email = u.email.toLowerCase()
-      const q = query.toLowerCase()
+      const email = (u.email || '').toLowerCase()
 
       if (searchMode === 'username') {
-        return username.includes(q)
+        const match = username.includes(q)
+        if (match) console.log('Match by username:', username)
+        return match
       } else {
-        return email.includes(q)
+        const match = email.includes(q)
+        if (match) console.log('Match by email:', email)
+        return match
       }
     })
 
+    console.log('Found results:', results.length)
     setSearchResults(results)
   }
 
