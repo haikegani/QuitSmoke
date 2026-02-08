@@ -107,6 +107,7 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
             friends={friends}
             onAddFriend={addFriend}
             onRemoveFriend={removeFriend}
+            user={user}
           />
         )}
         {activeTab === 'profile' && (
