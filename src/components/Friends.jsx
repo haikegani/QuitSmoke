@@ -3,9 +3,9 @@ import './Friends.css'
 
 export default function Friends({ 
   friends = [], 
-  onAddFriend, 
-  onRemoveFriend, 
-  user 
+  onAddFriend = () => {}, 
+  onRemoveFriend = () => {}, 
+  user = {} 
 }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
@@ -13,11 +13,13 @@ export default function Friends({
   const [success, setSuccess] = useState('')
   const [allUsers, setAllUsers] = useState([])
   const [searchMode, setSearchMode] = useState('username')
-  
+
   // Убедимся, что friends - это массив
   const friendsList = Array.isArray(friends) ? friends : []
 
   useEffect(() => {
+    if (!user || !user.id) return
+    
     // Загрузить всех зарегистрированных пользователей
     const users = []
     for (let i = 0; i < localStorage.length; i++) {
@@ -34,7 +36,7 @@ export default function Friends({
       }
     }
     setAllUsers(users)
-  }, [user.id])
+  }, [user?.id])
 
   const handleSearch = (query) => {
     setSearchQuery(query)
@@ -62,6 +64,8 @@ export default function Friends({
   }
 
   const handleAdd = (foundUser) => {
+    if (!foundUser || !foundUser.email) return
+
     if (friendsList.find(f => f.email === foundUser.email)) {
       setError('Этот пользователь уже в друзьях')
       setTimeout(() => setError(''), 3000)
@@ -70,25 +74,34 @@ export default function Friends({
 
     // Передаём полный объект пользователя
     onAddFriend({
-      id: foundUser.id,
+      id: foundUser.id || Date.now().toString(),
       email: foundUser.email,
       name: foundUser.username || foundUser.email.split('@')[0],
       username: foundUser.username,
-      avatar: foundUser.avatar,
-      avatarColor: foundUser.avatarColor,
+      avatar: foundUser.avatar || null,
+      avatarColor: foundUser.avatarColor || '#667eea',
       addedAt: new Date().toISOString()
     })
+    
     setSearchQuery('')
     setSearchResults([])
     setSuccess(`${foundUser.username || foundUser.email.split('@')[0]} добавлен в друзья! 🎉`)
     setTimeout(() => setSuccess(''), 3000)
   }
 
+  const handleRemove = (friendId) => {
+    if (onRemoveFriend && typeof onRemoveFriend === 'function') {
+      onRemoveFriend(friendId)
+    }
+  }
+
   return (
     <div className="friends-container">
+      {/* Поиск и добавление друзей */}
       <div className="friends-search">
         <h2>👥 Найти друзей</h2>
 
+        {/* Кнопки режима поиска */}
         <div className="search-mode-toggle">
           <button
             className={searchMode === 'username' ? 'active' : ''}
@@ -112,6 +125,7 @@ export default function Friends({
           </button>
         </div>
 
+        {/* Поле ввода поиска */}
         <input
           type="text"
           placeholder={
@@ -124,6 +138,7 @@ export default function Friends({
           className="search-input"
         />
 
+        {/* Результаты поиска */}
         {searchResults.length > 0 && (
           <div className="search-results">
             <div className="results-count">
@@ -135,14 +150,18 @@ export default function Friends({
                   <div
                     className="user-avatar-mini"
                     style={{
-                      background: `linear-gradient(135deg, ${
-                        u.avatarColor || '#667eea'
-                      }, ${u.avatarColor || '#667eea'}dd)`
+                      background: u.avatar 
+                        ? `url('${u.avatar}') center/cover`
+                        : `linear-gradient(135deg, ${u.avatarColor || '#667eea'}, ${u.avatarColor || '#667eea'}dd)`
                     }}
                   >
-                    {(u.username || u.email.split('@')[0])
-                      .slice(0, 1)
-                      .toUpperCase()}
+                    {!u.avatar && (
+                      <span className="avatar-text">
+                        {(u.username || u.email.split('@')[0])
+                          .slice(0, 1)
+                          .toUpperCase()}
+                      </span>
+                    )}
                   </div>
                   <div className="user-details">
                     <div className="user-username">
@@ -162,10 +181,12 @@ export default function Friends({
           </div>
         )}
 
+        {/* Сообщения об ошибках/успехе */}
         {error && <div className="error-message">{error}</div>}
         {success && <div className="success-message">{success}</div>}
       </div>
 
+      {/* Список друзей */}
       <div className="friends-list">
         <h2>🤝 Мои друзья ({friendsList.length})</h2>
 
@@ -178,7 +199,7 @@ export default function Friends({
         ) : (
           <div className="friends-grid">
             {friendsList.map((friend) => (
-              <div key={friend.id} className="friend-card glass">
+              <div key={friend.id || friend.email} className="friend-card glass">
                 <div className="friend-avatar">
                   {friend.avatar ? (
                     <img 
@@ -206,7 +227,7 @@ export default function Friends({
                 </div>
                 <div className="friend-email">{friend.email}</div>
                 <button
-                  onClick={() => onRemoveFriend(friend.id)}
+                  onClick={() => handleRemove(friend.id)}
                   className="btn-remove"
                 >
                   ✕ Удалить
