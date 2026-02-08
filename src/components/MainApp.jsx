@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import Feed from './Feed'
 import Friends from './Friends'
@@ -36,6 +36,20 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
       minLimit: 0
     }
   })
+
+  // Авто-обновление заявок и друзей
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const stored = localStorage.getItem(`qs_friend_requests_${user.id}`)
+      const newRequests = stored ? JSON.parse(stored) : []
+      setFriendRequests(newRequests)
+      
+      const storedFriends = localStorage.getItem(`qs_friends_${user.id}`)
+      const newFriends = storedFriends ? JSON.parse(storedFriends) : []
+      setFriends(newFriends)
+    }, 500)
+    return () => clearInterval(interval)
+  }, [user.id])
 
   const sendFriendRequest = (toUser) => {
     if (friends.find(f => f.email === toUser.email)) {

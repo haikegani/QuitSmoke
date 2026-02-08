@@ -1,33 +1,43 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import './Posts.css'
 
 const REACTIONS = ['❤️', '😂', '😃', '😍', '🎉', '💪', '😢', '🔥']
 
-export default function Posts({ user, friends }) {
-  const [posts, setPosts] = useState(() => {
-    const allPosts = []
-    // Загружаем посты из общего хранилища
-    const storedPosts = localStorage.getItem('qs_posts')
-    if (storedPosts) {
+function getAllPosts() {
+  const allPosts = []
+  // Загружаем посты из общего хранилища
+  const storedPosts = localStorage.getItem('qs_posts')
+  if (storedPosts) {
+    try {
+      allPosts.push(...JSON.parse(storedPosts))
+    } catch (e) {}
+  }
+  // Загружаем посты от всех пользователей
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key && key.startsWith('qs_posts_')) {
       try {
-        allPosts.push(...JSON.parse(storedPosts))
+        const userPosts = JSON.parse(localStorage.getItem(key))
+        if (Array.isArray(userPosts)) {
+          allPosts.push(...userPosts)
+        }
       } catch (e) {}
     }
-    // Загружаем посты от всех пользователей
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (key && key.startsWith('qs_posts_')) {
-        try {
-          const userPosts = JSON.parse(localStorage.getItem(key))
-          if (Array.isArray(userPosts)) {
-            allPosts.push(...userPosts)
-          }
-        } catch (e) {}
-      }
-    }
-    // Сортируем по времени (новые сверху)
-    return allPosts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-  })
+  }
+  // Сортируем по времени (новые сверху)
+  return allPosts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+}
+
+export default function Posts({ user, friends }) {
+  const [posts, setPosts] = useState(() => getAllPosts())
+
+  useEffect(() => {
+    // Загрузить посты при изменении
+    const interval = setInterval(() => {
+      setPosts(getAllPosts())
+    }, 500)
+    return () => clearInterval(interval)
+  }, [])
 
   const [newPost, setNewPost] = useState('')
   const [activeReactionPanel, setActiveReactionPanel] = useState(null)
@@ -46,10 +56,9 @@ export default function Posts({ user, friends }) {
       reactions: {} // {emoji: [userId1, userId2, ...]}
     }
 
-    const updated = [post, ...posts]
-    setPosts(updated)
-    
     // Сохраняем в общее хранилище для жёсткости
+    const allCurrentPosts = getAllPosts()
+    const updated = [post, ...allCurrentPosts]
     localStorage.setItem('qs_posts', JSON.stringify(updated))
     
     // Сохраняем посты текущего пользователя отдельно
@@ -57,6 +66,8 @@ export default function Posts({ user, friends }) {
     const userPosts = [post, ...(localStorage.getItem(userPostsKey) ? JSON.parse(localStorage.getItem(userPostsKey)) : [])]
     localStorage.setItem(userPostsKey, JSON.stringify(userPosts))
     
+    // Обновляем state
+    setPosts(getAllPosts())
     setNewPost('')
   }
 
@@ -79,14 +90,34 @@ export default function Posts({ user, friends }) {
     })
     setPosts(updated)
     localStorage.setItem('qs_posts', JSON.stringify(updated))
+    
+    // Также сохраняем в qs_posts_{userId} для текущего пользователя
+    const userPostsKey = `qs_posts_${user.id}`
+    const userPosts = localStorage.getItem(userPostsKey)
+    if (userPosts) {
+      const userPostsList = JSON.parse(userPosts).map(p => {
+        const matchedPost = updated.find(up => up.id === p.id)
+        return matchedPost || p
+      })
+      localStorage.setItem(userPostsKey, JSON.stringify(userPostsList))
+    }
+    
     setActiveReactionPanel(null)
   }
 
   const deletePost = (postId) => {
-    if (posts.find(p => p.id === postId).userId !== user.id) return
+    if (!posts.find(p => p.id === postId) || posts.find(p => p.id === postId).userId !== user.id) return
     const updated = posts.filter(p => p.id !== postId)
     setPosts(updated)
     localStorage.setItem('qs_posts', JSON.stringify(updated))
+    
+    // Также удаляем из qs_posts_{userId}
+    const userPostsKey = `qs_posts_${user.id}`
+    const userPosts = localStorage.getItem(userPostsKey)
+    if (userPosts) {
+      const userPostsList = JSON.parse(userPosts).filter(p => p.id !== postId)
+      localStorage.setItem(userPostsKey, JSON.stringify(userPostsList))
+    }
   }
 
   const formatTime = (isoString) => {
