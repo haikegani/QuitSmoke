@@ -249,6 +249,21 @@ export default function Friends({ user = {}, onStartChat = () => {} }) {
           <p className="muted">Найди интересного человека и напиши ему!</p>
         </div>
       )}
+
+      {/* DEBUG INFO */}
+      <div style={{ 
+        marginTop: '20px', 
+        padding: '12px', 
+        background: '#e3f2fd', 
+        borderRadius: '8px', 
+        fontSize: '12px',
+        fontFamily: 'monospace'
+      }}>
+        <strong>🔧 DEBUG:</strong>
+        <div>Пользователей доступно: {allUsers.length}</div>
+        <div>Последний поиск: "{searchQuery}" → {searchResults.length} совпадений</div>
+        <div>user.id: {user?.id || 'не определен'}</div>
+      </div>
     </div>
   )
 }
