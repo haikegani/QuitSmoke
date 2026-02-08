@@ -11,20 +11,21 @@ export default function App() {
   })
 
   useEffect(() => {
-    // Check for stored user session
-    const stored = localStorage.getItem('qs_user')
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored))
-      } catch (e) {
-        console.error('Failed to parse stored user:', e)
+    // Delay to ensure styles are loaded
+    setTimeout(() => {
+      const stored = localStorage.getItem('qs_user')
+      if (stored) {
+        try {
+          setUser(JSON.parse(stored))
+        } catch (e) {
+          console.error('Failed to parse stored user:', e)
+        }
       }
-    }
-    setLoading(false)
+      setLoading(false)
+    }, 100)
   }, [])
 
   useEffect(() => {
-    // Apply theme
     const root = document.documentElement
     if (theme === 'auto') {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -50,8 +51,8 @@ export default function App() {
   }
 
   if (loading) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-      <div style={{ fontSize: '18px', color: 'var(--text-light)' }}>Загрузка...</div>
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fff', color: '#000' }}>
+      <div style={{ fontSize: '18px' }}>Загрузка...</div>
     </div>
   }
 

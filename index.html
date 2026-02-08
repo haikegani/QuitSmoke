@@ -5,10 +5,74 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuitSmoke - Бросай курить</title>
   <style>
+    :root {
+      --bg-light: #ffffff;
+      --card-light: #ffffff;
+      --text-light: #0b1220;
+      --muted-light: #444b56;
+      --accent-light: #000000;
+      --btn-text-light: #ffffff;
+      --bg-dark: #0b0f1a;
+      --card-dark: #071021;
+      --text-dark: #e6eef8;
+      --muted-dark: #94a3b8;
+      --accent-dark: #22c55e;
+      --btn-text-dark: #ffffff;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { height: 100%; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif; }
-    #root { height: 100%; display: flex; flex-direction: column; }
+    #root { height: 100%; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      background: var(--bg-light);
+      color: var(--text-light);
+      transition: background 0.3s, color 0.3s;
+    }
+
+    body.dark-theme {
+      background: var(--bg-dark);
+      color: var(--text-dark);
+    }
+
+    button {
+      font-size: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: var(--accent-light);
+      color: var(--btn-text-light);
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-family: inherit;
+    }
+
+    .dark-theme button {
+      background: var(--accent-dark);
+      color: var(--btn-text-dark);
+    }
+
+    input, textarea {
+      font-size: 16px;
+      padding: 12px;
+      border: 1px solid #e6e9ee;
+      border-radius: 8px;
+      background: var(--card-light);
+      color: var(--text-light);
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    .dark-theme input, .dark-theme textarea {
+      background: var(--card-dark);
+      color: var(--text-dark);
+      border-color: #1e293b;
+    }
+
+    .muted { color: var(--muted-light); font-size: 14px; }
+    .dark-theme .muted { color: var(--muted-dark); }
   </style>
 </head>
 <body>
