@@ -1,43 +1,115 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { supabase } from '../lib/supabaseClient'
 import './Chats.css'
 
 export default function Chats({ user, friends, selectedChatUser, onChatOpened }) {
-  const [chats, setChats] = useState(() => {
-    const stored = localStorage.getItem(`qs_chats_${user.id}`)
-    return stored ? JSON.parse(stored) : []
-  })
-
+  const [chats, setChats] = useState([])
   const [selectedChat, setSelectedChat] = useState(null)
+  const [messages, setMessages] = useState([])
   const [messageText, setMessageText] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [showNewChat, setShowNewChat] = useState(false)
   const [selectedFriend, setSelectedFriend] = useState(null)
+  const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef(null)
+  const subscriptionRef = useRef(null)
 
-  useEffect(() => {
-    // Если пришел selectedChatUser из поиска, автоматически открываем чат
-    if (selectedChatUser && user) {
-      const chatId = [user.email, selectedChatUser.email].sort().join('_')
-      const existingChat = chats.find(c => c.id === chatId)
+  // Вычисляем чат ID из двух email'ов
+  const getChatId = (email1, email2) => {
+    return [email1, email2].sort().join('_')
+  }
 
-      if (existingChat) {
-        setSelectedChat(existingChat)
-      } else {
-        const friendName = selectedChatUser.name || selectedChatUser.username || selectedChatUser.email.split('@')[0]
-        const newChat = {
-          id: chatId,
-          participants: [user.email, selectedChatUser.email],
-          participantNames: [user.username || user.email.split('@')[0], friendName],
-          messages: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-        const updated = [newChat, ...chats]
-        setChats(updated)
-        localStorage.setItem(`qs_chats_${user.id}`, JSON.stringify(updated))
-        setSelectedChat(newChat)
-      }
+  // Загружаем сообщения из Supabase
+  const loadMessages = async (chatId) => {
+    if (!chatId) return
+
+    try {
+      console.log('[CHATS] Загружаем сообщения для чата:', chatId)
       
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: true })
+
+      if (error) {
+        console.warn('⚠️ Таблица messages еще не создана')
+        return
+      }
+
+      console.log('✓ Загружено сообщений:', data?.length || 0)
+      setMessages(data || [])
+    } catch (err) {
+      console.error('❌ Ошибка при загрузке сообщений:', err)
+    }
+  }
+
+  // Подписываемся на real-time обновления сообщений
+  const subscribeToMessages = (chatId) => {
+    if (!chatId) return
+
+    console.log('[CHATS] Подписываемся на обновления:', chatId)
+
+    if (subscriptionRef.current) {
+      supabase.removeChannel(subscriptionRef.current)
+    }
+
+    const subscription = supabase
+      .channel(`messages:${chatId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+          filter: `chat_id=eq.${chatId}`
+        },
+        (payload) => {
+          console.log('[CHATS] Real-time обновление:', payload.eventType)
+          
+          if (payload.eventType === 'INSERT') {
+            setMessages(prev => [...prev, payload.new])
+          } else if (payload.eventType === 'UPDATE') {
+            setMessages(prev =>
+              prev.map(msg => msg.id === payload.new.id ? payload.new : msg)
+            )
+          }
+        }
+      )
+      .subscribe()
+
+    subscriptionRef.current = subscription
+  }
+
+  // При выборе чата - загружаем сообщения
+  useEffect(() => {
+    if (selectedChat) {
+      loadMessages(selectedChat.id)
+      subscribeToMessages(selectedChat.id)
+    }
+
+    return () => {
+      if (subscriptionRef.current) {
+        supabase.removeChannel(subscriptionRef.current)
+      }
+    }
+  }, [selectedChat?.id])
+
+  // При выборе пользователя из поиска - открываем/создаем чат
+  useEffect(() => {
+    if (selectedChatUser && user) {
+      const chatId = getChatId(user.email, selectedChatUser.email)
+      const friendName = selectedChatUser.name || selectedChatUser.username || selectedChatUser.email.split('@')[0]
+      
+      const newChat = {
+        id: chatId,
+        participants: [user.email, selectedChatUser.email],
+        participantIds: [user.id, selectedChatUser.id],
+        participantNames: [user.username || user.email.split('@')[0], friendName],
+        createdAt: new Date().toISOString()
+      }
+
+      setSelectedChat(newChat)
       setShowNewChat(false)
       setSelectedFriend(null)
       onChatOpened?.()
@@ -50,108 +122,92 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
 
   useEffect(() => {
     scrollToBottom()
-  }, [selectedChat])
+  }, [messages])
 
-  const sendMessage = () => {
+  // Отправляем сообщение в Supabase
+  const sendMessage = async () => {
     if (!messageText.trim() || !selectedChat) return
 
-    const updatedChats = chats.map(chat => {
-      if (chat.id === selectedChat.id) {
-        return {
-          ...chat,
-          messages: [
-            ...chat.messages,
-            {
-              id: Date.now().toString(),
-              senderEmail: user.email,
-              senderUsername: user.username || user.email.split('@')[0],
-              text: messageText,
-              timestamp: new Date().toISOString(),
-              reactions: []
-            }
-          ],
-          updatedAt: new Date().toISOString()
-        }
+    setLoading(true)
+
+    try {
+      const receiverId = selectedChat.participantIds.find(id => id !== user.id)
+      const receiverEmail = selectedChat.participants.find(email => email !== user.email)
+
+      console.log('[CHATS] Отправляем сообщение в', receiverEmail)
+
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          chat_id: selectedChat.id,
+          sender_id: user.id,
+          sender_email: user.email,
+          sender_username: user.username || user.email.split('@')[0],
+          receiver_id: receiverId,
+          receiver_email: receiverEmail,
+          text: messageText.trim(),
+          reactions: []
+        })
+
+      if (error) throw error
+
+      console.log('✓ Сообщение отправлено')
+      setMessageText('')
+    } catch (err) {
+      console.error('❌ Ошибка при отправке сообщения:', err)
+      alert('Ошибка при отправке: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Обновляем reactions на сообщение
+  const addReaction = async (messageId, emoji) => {
+    try {
+      const message = messages.find(m => m.id === messageId)
+      if (!message) return
+
+      const reactions = message.reactions || []
+      const existingIndex = reactions.findIndex(r => r.emoji === emoji && r.by === user.email)
+
+      let updatedReactions
+      if (existingIndex >= 0) {
+        updatedReactions = reactions.filter((_, i) => i !== existingIndex)
+      } else {
+        updatedReactions = [...reactions, { emoji, by: user.email }]
       }
-      return chat
-    })
 
-    setChats(updatedChats)
-    localStorage.setItem(`qs_chats_${user.id}`, JSON.stringify(updatedChats))
+      console.log('[CHATS] Обновляем reactions:', emoji)
 
-    const updated = updatedChats.find(c => c.id === selectedChat.id)
-    setSelectedChat(updated)
-    setMessageText('')
+      const { error } = await supabase
+        .from('messages')
+        .update({ reactions: updatedReactions })
+        .eq('id', messageId)
+
+      if (error) throw error
+
+      console.log('✓ Reactions обновлены')
+    } catch (err) {
+      console.error('❌ Ошибка при обновлении reactions:', err)
+    }
   }
 
   const startNewChat = (friend) => {
-    const chatId = [user.email, friend.email].sort().join('_')
-    const existingChat = chats.find(c => c.id === chatId)
-
-    if (existingChat) {
-      setSelectedChat(existingChat)
-    } else {
-      const friendName = friend.name || friend.username || friend.email.split('@')[0]
-      const newChat = {
-        id: chatId,
-        participants: [user.email, friend.email],
-        participantNames: [user.username || user.email.split('@')[0], friendName],
-        messages: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-      const updated = [newChat, ...chats]
-      setChats(updated)
-      localStorage.setItem(`qs_chats_${user.id}`, JSON.stringify(updated))
-      setSelectedChat(newChat)
+    const chatId = getChatId(user.email, friend.email)
+    const friendName = friend.name || friend.username || friend.email.split('@')[0]
+    
+    const newChat = {
+      id: chatId,
+      participants: [user.email, friend.email],
+      participantIds: [user.id, friend.id],
+      participantNames: [user.username || user.email.split('@')[0], friendName],
+      createdAt: new Date().toISOString()
     }
 
+    setSelectedChat(newChat)
     setShowNewChat(false)
     setSelectedFriend(null)
   }
-
-  const addReaction = (messageId, emoji) => {
-    if (!selectedChat) return
-
-    const updatedChats = chats.map(chat => {
-      if (chat.id === selectedChat.id) {
-        return {
-          ...chat,
-          messages: chat.messages.map(msg => {
-            if (msg.id === messageId) {
-              const existingReaction = msg.reactions.find(r => r.emoji === emoji && r.by === user.email)
-              if (existingReaction) {
-                return {
-                  ...msg,
-                  reactions: msg.reactions.filter(r => !(r.emoji === emoji && r.by === user.email))
-                }
-              } else {
-                return {
-                  ...msg,
-                  reactions: [...msg.reactions, { emoji, by: user.email }]
-                }
-              }
-            }
-            return msg
-          })
-        }
-      }
-      return chat
-    })
-
-    setChats(updatedChats)
-    localStorage.setItem(`qs_chats_${user.id}`, JSON.stringify(updatedChats))
-    const updated = updatedChats.find(c => c.id === selectedChat.id)
-    setSelectedChat(updated)
-  }
-
-  const filteredChats = chats.filter(chat => {
-    const names = chat.participantNames.join(' ').toLowerCase()
-    return names.includes(searchTerm.toLowerCase())
-  })
-
-  const otherParticipant = selectedChat?.participants.find(p => p !== user.email)
-  const otherParticipantName = selectedChat?.participantNames.find((_, i) => selectedChat.participants[i] !== user.email)
 
   return (
     <div className="chats-container">
@@ -172,22 +228,18 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
                   <button
                     key={friend.id}
                     className={`friend-item ${selectedFriend?.id === friend.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedFriend(friend)}
+                    onClick={() => startNewChat(friend)}
                   >
-                    <div className="friend-avatar">{(friend.name || friend.username || friend.email).slice(0, 2).toUpperCase()}</div>
+                    <div className="friend-avatar" style={{ background: friend.avatarColor }}>
+                      {(friend.name || friend.username || friend.email).slice(0, 2).toUpperCase()}
+                    </div>
                     <div className="friend-name">{friend.name || friend.username || friend.email}</div>
                   </button>
                 ))
               ) : (
                 <div className="empty-friends">
-                  <p>Нету пользователей</p>
-                  <p style={{fontSize: '12px', color: '#999', marginTop: '4px'}}>Загружаем...</p>
+                  <p>Загружаем пользователей...</p>
                 </div>
-              )}
-              {selectedFriend && (
-                <button className="btn-start-chat" onClick={() => startNewChat(selectedFriend)}>
-                  Начать чат →
-                </button>
               )}
             </div>
           </div>
@@ -203,29 +255,30 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
         </div>
 
         <div className="chats-list">
-          {filteredChats.map(chat => (
+          {messages.length > 0 && selectedChat && (
             <button
-              key={chat.id}
-              className={`chat-item ${selectedChat?.id === chat.id ? 'active' : ''}`}
-              onClick={() => setSelectedChat(chat)}
+              className={`chat-item active`}
+              onClick={() => {}}
             >
-              <div className="chat-avatar">{chat.participantNames[0].slice(0, 2).toUpperCase()}</div>
+              <div className="chat-avatar" style={{ background: '#667eea' }}>
+                {selectedChat.participantNames[1]?.slice(0, 2).toUpperCase()}
+              </div>
               <div className="chat-info">
                 <div className="chat-name">
-                  {chat.participantNames.find(n => n !== (user.username || user.email.split('@')[0]))}
+                  {selectedChat.participantNames[1]}
                 </div>
                 <div className="chat-preview">
-                  {chat.messages.length > 0
-                    ? chat.messages[chat.messages.length - 1].text.slice(0, 30) + (chat.messages[chat.messages.length - 1].text.length > 30 ? '...' : '')
+                  {messages.length > 0
+                    ? messages[messages.length - 1].text.slice(0, 30) + (messages[messages.length - 1].text.length > 30 ? '...' : '')
                     : 'Нет сообщений'}
                 </div>
               </div>
             </button>
-          ))}
+          )}
 
-          {filteredChats.length === 0 && (
+          {messages.length === 0 && selectedChat && (
             <div className="empty-chats">
-              <p>Нет чатов</p>
+              <p>Начни беседу</p>
             </div>
           )}
         </div>
@@ -235,35 +288,44 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
         {selectedChat ? (
           <>
             <div className="chat-header">
-              <div className="chat-title">{otherParticipantName}</div>
-              <div className="chat-status">Online</div>
+              <div className="chat-title">{selectedChat.participantNames[1]}</div>
+              <button onClick={() => setSelectedChat(null)} className="close-btn">✕</button>
             </div>
 
             <div className="messages-container">
-              {selectedChat.messages.map(message => (
+              {messages.map(message => (
                 <div
                   key={message.id}
-                  className={`message ${message.senderEmail === user.email ? 'sent' : 'received'}`}
+                  className={`message ${message.sender_email === user.email ? 'sent' : 'received'}`}
                 >
                   <div className="message-content">
                     <div className="message-text">{message.text}</div>
-                    {message.reactions && message.reactions.length > 0 && (
-                      <div className="message-reactions">
-                        {Array.from(new Set(message.reactions.map(r => r.emoji))).map(emoji => {
-                          const count = message.reactions.filter(r => r.emoji === emoji).length
-                          return (
-                            <button
-                              key={emoji}
-                              className="reaction"
-                              onClick={() => addReaction(message.id, emoji)}
-                            >
-                              {emoji} {count > 1 ? count : ''}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
+                    <div className="message-time">
+                      {new Date(message.created_at).toLocaleTimeString('ru-RU', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
                   </div>
+
+                  {message.reactions && message.reactions.length > 0 && (
+                    <div className="message-reactions">
+                      {Array.from(new Set(message.reactions.map(r => r.emoji))).map(emoji => {
+                        const count = message.reactions.filter(r => r.emoji === emoji).length
+                        return (
+                          <button
+                            key={emoji}
+                            className="reaction"
+                            onClick={() => addReaction(message.id, emoji)}
+                            title={`Добавлено: ${count}`}
+                          >
+                            {emoji} {count > 1 ? count : ''}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
                   <button
                     className="reaction-btn"
                     onClick={() => addReaction(message.id, '👍')}
@@ -281,18 +343,24 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
                 type="text"
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    sendMessage()
+                  }
+                }}
                 placeholder="Напишите сообщение..."
+                disabled={loading}
               />
-              <button onClick={sendMessage} className="btn-send">
-                ↗️
+              <button onClick={sendMessage} className="btn-send" disabled={loading || !messageText.trim()}>
+                {loading ? '⏳' : '➤'}
               </button>
             </div>
           </>
         ) : (
           <div className="no-chat-selected">
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>💬</div>
-            <p>Выберите чат или начните новый</p>
+            <p>Выберите пользователя или начните новый чат</p>
           </div>
         )}
       </div>
