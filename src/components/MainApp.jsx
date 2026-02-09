@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabaseClient'
 import Sidebar from './Sidebar'
 import Feed from './Feed'
 import Friends from './Friends'
@@ -20,6 +21,7 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
     return 'feed'
   })
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [allUsers, setAllUsers] = useState([])
   
   const [puffCount, setPuffCount] = useState(() => {
     const stored = localStorage.getItem(`qs_puffs_${user.id}`)
@@ -39,6 +41,55 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
   // Обработчик для запуска чата с пользователем
   const handleStartChat = (targetUser) => {
     setActiveTab('chats')
+  }
+
+  // Загружаем пользователей для выбора в чатах
+  useEffect(() => {
+    loadUsers()
+    const interval = setInterval(loadUsers, 10000)
+    return () => clearInterval(interval)
+  }, [user?.id])
+
+  const loadUsers = async () => {
+    if (!user?.id) return
+
+    try {
+      // Получаем всех пользователей из таблицы profiles (кроме текущего)
+      const { data: profilesData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .neq('id', user.id)
+
+      if (error) {
+        // Fallback: пытаемся получить из localStorage
+        const stored = JSON.parse(localStorage.getItem('qs_users') || '[]')
+        const filtered = stored.filter(u => u.id !== user.id).map(u => ({
+          id: u.id,
+          email: u.email,
+          name: u.username || u.email.split('@')[0],
+          avatarColor: u.avatarColor || '#667eea',
+          status: u.status || '',
+          avatar: u.avatar || null
+        }))
+        setAllUsers(filtered)
+        return
+      }
+
+      // Фильтруем данные
+      const filteredUsers = (profilesData || [])
+        .map(profile => ({
+          id: profile.id,
+          email: profile.email,
+          name: profile.username || profile.email?.split('@')[0] || 'User',
+          avatarColor: profile.avatar_color || '#667eea',
+          status: profile.status || '',
+          avatar: profile.avatar || null
+        }))
+
+      setAllUsers(filteredUsers)
+    } catch (error) {
+      console.error('[MainApp] Ошибка при загрузке пользователей:', error)
+    }
   }
 
   const addPuff = () => {
@@ -99,7 +150,7 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
           <Channels user={user} />
         )}
         {activeTab === 'chats' && (
-          <Chats user={user} friends={[]} />
+          <Chats user={user} friends={allUsers} />
         )}
         {activeTab === 'friends' && (
           <Friends

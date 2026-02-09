@@ -284,6 +284,17 @@
   color: var(--muted-dark);
 }
 
+.empty-friends {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--muted-light);
+  font-size: 14px;
+}
+
+.dark-theme .empty-friends {
+  color: var(--muted-dark);
+}
+
 /* Chat View */
 .chat-view {
   display: flex;

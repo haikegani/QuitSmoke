@@ -134,18 +134,25 @@ export default function Chats({ user, friends }) {
 
         {showNewChat && (
           <div className="new-chat-panel">
-            <div className="new-chat-label">Выберите друга</div>
+            <div className="new-chat-label">Выберите пользователя</div>
             <div className="friends-list">
-              {friends.map(friend => (
-                <button
-                  key={friend.id}
-                  className={`friend-item ${selectedFriend?.id === friend.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedFriend(friend)}
-                >
-                  <div className="friend-avatar">{friend.name.slice(0, 2).toUpperCase()}</div>
-                  <div className="friend-name">{friend.name}</div>
-                </button>
-              ))}
+              {friends && friends.length > 0 ? (
+                friends.map(friend => (
+                  <button
+                    key={friend.id}
+                    className={`friend-item ${selectedFriend?.id === friend.id ? 'selected' : ''}`}
+                    onClick={() => setSelectedFriend(friend)}
+                  >
+                    <div className="friend-avatar">{(friend.name || friend.username || friend.email).slice(0, 2).toUpperCase()}</div>
+                    <div className="friend-name">{friend.name || friend.username || friend.email}</div>
+                  </button>
+                ))
+              ) : (
+                <div className="empty-friends">
+                  <p>Нету пользователей</p>
+                  <p style={{fontSize: '12px', color: '#999', marginTop: '4px'}}>Загружаем...</p>
+                </div>
+              )}
               {selectedFriend && (
                 <button className="btn-start-chat" onClick={() => startNewChat(selectedFriend)}>
                   Начать чат →
