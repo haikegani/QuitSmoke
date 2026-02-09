@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import './Chats.css'
 
-export default function Chats({ user, friends }) {
+export default function Chats({ user, friends, selectedChatUser, onChatOpened }) {
   const [chats, setChats] = useState(() => {
     const stored = localStorage.getItem(`qs_chats_${user.id}`)
     return stored ? JSON.parse(stored) : []
@@ -13,6 +13,36 @@ export default function Chats({ user, friends }) {
   const [showNewChat, setShowNewChat] = useState(false)
   const [selectedFriend, setSelectedFriend] = useState(null)
   const messagesEndRef = useRef(null)
+
+  useEffect(() => {
+    // Если пришел selectedChatUser из поиска, автоматически открываем чат
+    if (selectedChatUser && user) {
+      const chatId = [user.email, selectedChatUser.email].sort().join('_')
+      const existingChat = chats.find(c => c.id === chatId)
+
+      if (existingChat) {
+        setSelectedChat(existingChat)
+      } else {
+        const friendName = selectedChatUser.name || selectedChatUser.username || selectedChatUser.email.split('@')[0]
+        const newChat = {
+          id: chatId,
+          participants: [user.email, selectedChatUser.email],
+          participantNames: [user.username || user.email.split('@')[0], friendName],
+          messages: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+        const updated = [newChat, ...chats]
+        setChats(updated)
+        localStorage.setItem(`qs_chats_${user.id}`, JSON.stringify(updated))
+        setSelectedChat(newChat)
+      }
+      
+      setShowNewChat(false)
+      setSelectedFriend(null)
+      onChatOpened?.()
+    }
+  }, [selectedChatUser, user?.id])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -61,10 +91,11 @@ export default function Chats({ user, friends }) {
     if (existingChat) {
       setSelectedChat(existingChat)
     } else {
+      const friendName = friend.name || friend.username || friend.email.split('@')[0]
       const newChat = {
         id: chatId,
         participants: [user.email, friend.email],
-        participantNames: [user.username || user.email.split('@')[0], friend.name],
+        participantNames: [user.username || user.email.split('@')[0], friendName],
         messages: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()

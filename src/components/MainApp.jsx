@@ -22,6 +22,7 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
   })
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [allUsers, setAllUsers] = useState([])
+  const [selectedChatUser, setSelectedChatUser] = useState(null)
   
   const [puffCount, setPuffCount] = useState(() => {
     const stored = localStorage.getItem(`qs_puffs_${user.id}`)
@@ -40,6 +41,7 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
 
   // Обработчик для запуска чата с пользователем
   const handleStartChat = (targetUser) => {
+    setSelectedChatUser(targetUser)
     setActiveTab('chats')
   }
 
@@ -150,7 +152,7 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
           <Channels user={user} />
         )}
         {activeTab === 'chats' && (
-          <Chats user={user} friends={allUsers} />
+          <Chats user={user} friends={allUsers} selectedChatUser={selectedChatUser} onChatOpened={() => setSelectedChatUser(null)} />
         )}
         {activeTab === 'friends' && (
           <Friends
