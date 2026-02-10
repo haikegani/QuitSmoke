@@ -49,20 +49,21 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
     if (!user?.email) return
 
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`(sender_email.eq.${user.email},receiver_email.eq.${user.email})`)
-        .order('created_at', { ascending: false })
+      // Supabase .or sometimes causes bad requests in some environments.
+      // Выполним два запроса и объединим результаты вручную (sender || receiver)
+      const [resSender, resReceiver] = await Promise.all([
+        supabase.from('messages').select('*').eq('sender_email', user.email).order('created_at', { ascending: false }),
+        supabase.from('messages').select('*').eq('receiver_email', user.email).order('created_at', { ascending: false })
+      ])
 
-      if (error) {
-        console.warn('[CHATS] Не удалось загрузить сообщения для списка чатов', error)
-        return
-      }
+      const senderData = resSender.data || []
+      const receiverData = resReceiver.data || []
+      const combined = [...senderData, ...receiverData]
 
-      // Берём по каждому chat_id самое последнее сообщение
+      // Берём по каждому chat_id самое последнее сообщение (по created_at desc)
       const map = new Map()
-      ;(data || []).forEach(msg => {
+      combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      combined.forEach(msg => {
         if (!map.has(msg.chat_id)) {
           const otherEmail = msg.sender_email === user.email ? msg.receiver_email : msg.sender_email
           const otherName = msg.sender_username || otherEmail.split('@')[0]
@@ -206,6 +207,16 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
       try { supabase.removeChannel(channel) } catch (e) {}
     }
   }, [user?.email, selectedChat?.id])
+
+  // Polling fallback: если WebSocket/Realtime не работает, будем опрашивать список чатов каждые 8s
+  useEffect(() => {
+    if (!user?.email) return
+    const id = setInterval(() => {
+      loadChats()
+    }, 8000)
+
+    return () => clearInterval(id)
+  }, [user?.email])
 
   // Отправляем сообщение в Supabase
   const sendMessage = async () => {
