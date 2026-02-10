@@ -11,6 +11,7 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
   const [showNewChat, setShowNewChat] = useState(false)
   const [selectedFriend, setSelectedFriend] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const messagesEndRef = useRef(null)
   const subscriptionRef = useRef(null)
 
@@ -66,7 +67,9 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
       combined.forEach(msg => {
         if (!map.has(msg.chat_id)) {
           const otherEmail = msg.sender_email === user.email ? msg.receiver_email : msg.sender_email
-          const otherName = msg.sender_username || otherEmail.split('@')[0]
+          // Пытаемся найти имя в списке friends, иначе берём доступное поле в сообщении, иначе email
+          const friendObj = (friends || []).find(f => f.email === otherEmail)
+          const otherName = friendObj?.name || friendObj?.username || (msg.sender_email === user.email ? msg.receiver_username : msg.sender_username) || otherEmail.split('@')[0]
           map.set(msg.chat_id, {
             id: msg.chat_id,
             lastMessage: msg.text,
@@ -163,6 +166,22 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
       onChatOpened?.()
     }
   }, [selectedChatUser, user?.id])
+
+  // detect mobile
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  const getOtherForChat = (chat) => {
+    if (!chat) return { email: '', name: '' }
+    const otherEmail = (chat.participants && chat.participants.find(e => e !== user.email)) || (chat.participantEmail) || ''
+    const friendObj = (friends || []).find(f => f.email === otherEmail)
+    const name = friendObj?.name || friendObj?.username || (chat.participantNames && chat.participantNames.find(n => n !== (user.username || user.email.split('@')[0]))) || otherEmail.split('@')[0]
+    return { email: otherEmail, name }
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -395,7 +414,7 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
         {selectedChat ? (
           <>
             <div className="chat-header">
-              <div className="chat-title">{selectedChat.participantNames[1]}</div>
+              <div className="chat-title">{getOtherForChat(selectedChat).name}</div>
               <button onClick={() => setSelectedChat(null)} className="close-btn">✕</button>
             </div>
 
@@ -465,37 +484,96 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
             </div>
           </>
         ) : (
-          <div className="no-chat-selected">
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>💬</div>
-            <p>Выберите пользователя или начните новый чат</p>
-            <button className="btn-start-chat" onClick={() => setShowNewChat(true)} style={{ marginTop: 12 }}>Начать чат</button>
-
-            {showNewChat && (
-              <div className="new-chat-panel" style={{ marginTop: 16, width: '100%' }}>
-                <div className="new-chat-label">Выберите пользователя</div>
-                <div className="friends-list">
-                  {friends && friends.length > 0 ? (
-                    friends.map(friend => (
-                      <button
-                        key={friend.id}
-                        className={`friend-item ${selectedFriend?.id === friend.id ? 'selected' : ''}`}
-                        onClick={() => startNewChat(friend)}
-                      >
-                        <div className="friend-avatar" style={{ background: friend.avatarColor }}>
-                          {(friend.name || friend.username || friend.email).slice(0, 2).toUpperCase()
-                        }</div>
-                        <div className="friend-name">{friend.name || friend.username || friend.email}</div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="empty-friends">
-                      <p>Загружаем пользователей...</p>
-                    </div>
-                  )}
+          isMobile ? (
+            // mobile: show chats list (or empty state with start button)
+            <div className="no-chat-selected">
+              {chats && chats.length > 0 ? (
+                <div style={{ width: '100%' }}>
+                  {chats.map(chat => (
+                    <button
+                      key={chat.id}
+                      className={`chat-item ${selectedChat?.id === chat.id ? 'active' : ''}`}
+                      onClick={() => {
+                        setSelectedChat({
+                          id: chat.id,
+                          participants: chat.participants,
+                          participantIds: chat.participantIds,
+                          participantNames: chat.participantNames
+                        })
+                      }}
+                      style={{ display: 'flex', width: '100%' }}
+                    >
+                      <div className="chat-avatar" style={{ background: '#667eea' }}>
+                        {chat.participantNames[1]?.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="chat-info">
+                        <div className="chat-name">{chat.participantNames[1]}</div>
+                        <div className="chat-preview">{chat.lastMessage ? (chat.lastMessage.slice(0, 30) + (chat.lastMessage.length > 30 ? '...' : '')) : 'Нет сообщений'}</div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              </div>
-            )}
-          </div>
+              ) : (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>💬</div>
+                  <p>Начать новый чат</p>
+                  <button className="btn-start-chat" onClick={() => setShowNewChat(true)} style={{ marginTop: 12 }}>Начать чат</button>
+                </div>
+              )}
+
+              {showNewChat && (
+                <div className="new-chat-panel" style={{ marginTop: 16, width: '100%' }}>
+                  <div className="new-chat-label">Выберите пользователя</div>
+                  <div className="friends-list">
+                    {friends && friends.length > 0 ? (
+                      friends.map(friend => (
+                        <button
+                          key={friend.id}
+                          className={`friend-item ${selectedFriend?.id === friend.id ? 'selected' : ''}`}
+                          onClick={() => startNewChat(friend)}
+                        >
+                          <div className="friend-avatar" style={{ background: friend.avatarColor }}>{(friend.name || friend.username || friend.email).slice(0, 2).toUpperCase()}</div>
+                          <div className="friend-name">{friend.name || friend.username || friend.email}</div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="empty-friends"><p>Загружаем пользователей...</p></div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="no-chat-selected">
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>💬</div>
+              <p>Выберите пользователя или начните новый чат</p>
+              {chats.length === 0 && (
+                <button className="btn-start-chat" onClick={() => setShowNewChat(true)} style={{ marginTop: 12 }}>Начать чат</button>
+              )}
+
+              {showNewChat && (
+                <div className="new-chat-panel" style={{ marginTop: 16, width: '100%' }}>
+                  <div className="new-chat-label">Выберите пользователя</div>
+                  <div className="friends-list">
+                    {friends && friends.length > 0 ? (
+                      friends.map(friend => (
+                        <button
+                          key={friend.id}
+                          className={`friend-item ${selectedFriend?.id === friend.id ? 'selected' : ''}`}
+                          onClick={() => startNewChat(friend)}
+                        >
+                          <div className="friend-avatar" style={{ background: friend.avatarColor }}>{(friend.name || friend.username || friend.email).slice(0, 2).toUpperCase()}</div>
+                          <div className="friend-name">{friend.name || friend.username || friend.email}</div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="empty-friends"><p>Загружаем пользователей...</p></div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
         )}
       </div>
     </div>
