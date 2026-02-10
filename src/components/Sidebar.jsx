@@ -3,8 +3,6 @@ import './Sidebar.css'
 
 const MENU_ITEMS = [
   { id: 'feed', label: 'Лента', icon: '🔥', section: 'main' },
-  { id: 'posts', label: 'Посты', icon: '💬', section: 'main' },
-  { id: 'channels', label: 'Каналы', icon: '📢', section: 'social' },
   { id: 'chats', label: 'Чаты', icon: '💬', section: 'social' },
   { id: 'friends', label: 'Друзья', icon: '👥', section: 'social' },
   { id: 'profile', label: 'Профиль', icon: '👤', section: 'user' },

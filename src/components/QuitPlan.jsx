@@ -93,10 +93,20 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
     age: 30,
     goal: 'quit',
     reductionTarget: 50,
-    consumptionAnswers: []
+    consumptionAnswers: [],
+    selectedProducts: [],
+    wakeCraving: '',
+    triggers: [],
+    triedToQuit: 'no',
+    previousAttempts: '',
+    commonRelapse: '',
+    motivations: [],
+    readiness: 5,
+    support: 'никто'
   })
   const [calculatedPlan, setCalculatedPlan] = useState(null)
   const [saved, setSaved] = useState(false)
+  const [showGeneral, setShowGeneral] = useState(true)
 
   const product = PRODUCT_TYPES[productType]
 
@@ -148,6 +158,122 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
       createdAt: new Date().toISOString()
     }
   }
+
+    // Общие вопросы — показываем как модалку перед остальными шагами
+    if (showGeneral) {
+      return (
+        <div className="quit-plan-container">
+          <div className="plan-card glass">
+            <div className="plan-header">
+              <h2>Общие вопросы</h2>
+              <p>Ответь на несколько общих вопросов — это поможет составить персональный план</p>
+            </div>
+
+            <div className="question-group">
+              <label>Возраст</label>
+              <input type="number" min="12" max="120" value={formData.age} onChange={(e) => setFormData(prev => ({ ...prev, age: parseInt(e.target.value) }))} />
+            </div>
+
+            <div className="question-group">
+              <label>Сколько лет/месяцев употребляешь никотин?</label>
+              <input type="number" min="0" step="0.5" value={formData.yearsConsuming} onChange={(e) => setFormData(prev => ({ ...prev, yearsConsuming: parseFloat(e.target.value) }))} />
+              <small>Используй дробные значения для месяцев (0.5 = 6 месяцев)</small>
+            </div>
+
+            <div className="question-group">
+              <label>Что именно используешь? (можно несколько)</label>
+              <div className="product-checkboxes">
+                {Object.keys(PRODUCT_TYPES).map(key => (
+                  <label key={key} style={{ display: 'block', marginBottom: 6 }}>
+                    <input
+                      type="checkbox"
+                      checked={(formData.selectedProducts || []).includes(key)}
+                      onChange={(e) => {
+                        const sel = new Set(formData.selectedProducts || [])
+                        if (e.target.checked) sel.add(key); else sel.delete(key)
+                        setFormData(prev => ({ ...prev, selectedProducts: Array.from(sel) }))
+                      }}
+                    /> {PRODUCT_TYPES[key].name}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="question-group">
+              <label>Как быстро после пробуждения тянет к никотину?</label>
+              <select value={formData.wakeCraving || ''} onChange={(e) => setFormData(prev => ({ ...prev, wakeCraving: e.target.value }))}>
+                <option value="">-- выбрать --</option>
+                <option value="0-5">до 5 минут</option>
+                <option value="6-30">6–30 минут</option>
+                <option value="31-60">31–60 минут</option>
+                <option value=">60">позже часа</option>
+              </select>
+            </div>
+
+            <div className="question-group">
+              <label>В каких ситуациях тянет больше всего? (выбери несколько)</label>
+              {['стресс','скука','после еды','с друзьями','алкоголь','работа/учёба'].map(s => (
+                <label key={s} style={{ display: 'block', marginBottom: 6 }}>
+                  <input type="checkbox" checked={(formData.triggers||[]).includes(s)} onChange={(e) => {
+                    const setT = new Set(formData.triggers||[])
+                    if (e.target.checked) setT.add(s); else setT.delete(s)
+                    setFormData(prev => ({ ...prev, triggers: Array.from(setT) }))
+                  }} /> {s}
+                </label>
+              ))}
+            </div>
+
+            <div className="question-group">
+              <label>Пробовал(а) ли бросать раньше?</label>
+              <select value={formData.triedToQuit || 'no'} onChange={(e) => setFormData(prev => ({ ...prev, triedToQuit: e.target.value }))}>
+                <option value="no">нет</option>
+                <option value="yes">да</option>
+              </select>
+              {formData.triedToQuit === 'yes' && (
+                <input placeholder="Сколько раз и на какой срок" value={formData.previousAttempts || ''} onChange={(e) => setFormData(prev => ({ ...prev, previousAttempts: e.target.value }))} />
+              )}
+            </div>
+
+            <div className="question-group">
+              <label>Что обычно срывает?</label>
+              <input placeholder="Например: стресс, алкоголь" value={formData.commonRelapse || ''} onChange={(e) => setFormData(prev => ({ ...prev, commonRelapse: e.target.value }))} />
+            </div>
+
+            <div className="question-group">
+              <label>Зачем ты хочешь бросить? (выбери несколько)</label>
+              {['здоровье','деньги','спорт','отношения','контроль','другое'].map(r => (
+                <label key={r} style={{ display: 'block', marginBottom: 6 }}>
+                  <input type="checkbox" checked={(formData.motivations||[]).includes(r)} onChange={(e) => {
+                    const setM = new Set(formData.motivations||[])
+                    if (e.target.checked) setM.add(r); else setM.delete(r)
+                    setFormData(prev => ({ ...prev, motivations: Array.from(setM) }))
+                  }} /> {r}
+                </label>
+              ))}
+            </div>
+
+            <div className="question-group">
+              <label>Насколько ты готов(а) бросить прямо сейчас по шкале 1–10?</label>
+              <input type="range" min="1" max="10" value={formData.readiness || 5} onChange={(e) => setFormData(prev => ({ ...prev, readiness: parseInt(e.target.value) }))} />
+              <div>Готовность: {formData.readiness || 5}</div>
+            </div>
+
+            <div className="question-group">
+              <label>Есть ли поддержка?</label>
+              <select value={formData.support || 'никто'} onChange={(e) => setFormData(prev => ({ ...prev, support: e.target.value }))}>
+                <option value="друзья">друзья</option>
+                <option value="партнёр">партнёр</option>
+                <option value="никто">никто</option>
+              </select>
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <button className="btn-next glass" onClick={() => setShowGeneral(false)}>Продолжить</button>
+            </div>
+          </div>
+        </div>
+      )
+    }
 
   // Шаг 1: Выбор типа продукта
   if (step === 0) {
@@ -547,6 +673,22 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
               <div className="value">{calculatedPlan.currentDaily} {product.unit}/день</div>
             </div>
             <div className="summary-item">
+              <div className="label">Категории</div>
+              <div className="value">{(calculatedPlan.selectedProducts || formData.selectedProducts || []).map(k => PRODUCT_TYPES[k]?.name || k).join(', ')}</div>
+            </div>
+            <div className="summary-item">
+              <div className="label">Триггеры</div>
+              <div className="value">{(calculatedPlan.triggers || formData.triggers || []).join(', ') || '—'}</div>
+            </div>
+            <div className="summary-item">
+              <div className="label">Мотивация</div>
+              <div className="value">{(calculatedPlan.motivations || formData.motivations || []).join(', ') || '—'}</div>
+            </div>
+            <div className="summary-item">
+              <div className="label">Поддержка</div>
+              <div className="value">{calculatedPlan.support || formData.support || '—'}</div>
+            </div>
+            <div className="summary-item">
               <div className="label">Срок</div>
               <div className="value">{calculatedPlan.completionDays} дней</div>
             </div>
@@ -579,7 +721,8 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
                 console.log('Save clicked, calculatedPlan:', calculatedPlan)
                 console.log('onSavePlan function:', onSavePlan)
                 if (onSavePlan) {
-                  onSavePlan(calculatedPlan)
+                  const payload = { ...calculatedPlan, selectedProducts: formData.selectedProducts, triggers: formData.triggers, motivations: formData.motivations, support: formData.support }
+                  onSavePlan(payload)
                   setSaved(true)
                   setTimeout(() => setSaved(false), 2000)
                 } else {

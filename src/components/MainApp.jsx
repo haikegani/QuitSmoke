@@ -4,8 +4,7 @@ import Sidebar from './Sidebar'
 import Feed from './Feed'
 import Friends from './Friends'
 import Profile from './Profile'
-import Posts from './Posts'
-import Channels from './Channels'
+// Posts and Channels removed per product simplification
 import Chats from './Chats'
 import Settings from './Settings'
 import Debug from './Debug'
@@ -145,12 +144,7 @@ export default function MainApp({ user, onLogout, theme, onThemeChange, onUpdate
             onUpdatePlan={setQuitPlan}
           />
         )}
-        {activeTab === 'posts' && (
-          <Posts user={user} friends={[]} />
-        )}
-        {activeTab === 'channels' && (
-          <Channels user={user} />
-        )}
+        {/* posts and channels removed */}
         {activeTab === 'chats' && (
           <Chats user={user} friends={allUsers} selectedChatUser={selectedChatUser} onChatOpened={() => setSelectedChatUser(null)} />
         )}
