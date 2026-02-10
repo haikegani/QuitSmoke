@@ -137,6 +137,44 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
     return null
   }
 
+  const proceedFromExtra = (current) => {
+    const completed = new Set(formData.productsCompleted || [])
+    if (current) completed.add(current)
+    const selected = formData.selectedProducts || []
+    const next = selected.find(p => !completed.has(p))
+    setFormData(prev => ({ ...prev, productsCompleted: Array.from(completed) }))
+    if (next) {
+      setExtraStep(next)
+    } else {
+      setExtraStep(null)
+      setStep(2)
+    }
+  }
+
+  const validateVape = () => {
+    const v = formData.vape || {}
+    if (!v.strength && !v.puffs) return 'Укажите крепость или примерное количество затяжек'
+    return null
+  }
+
+  const validateIqos = () => {
+    const i = formData.iqos || {}
+    if (!i.sticks || i.sticks <= 0) return 'Укажите количество стиков в день'
+    return null
+  }
+
+  const validateSnus = () => {
+    const s = formData.snus || {}
+    if (!s.pouches || s.pouches <= 0) return 'Укажите количество паучей/саше в день'
+    return null
+  }
+
+  const validateHookah = () => {
+    const h = formData.hookah || {}
+    if (!h.frequency) return 'Укажите частоту кальяна'
+    return null
+  }
+
   const product = PRODUCT_TYPES[productType]
 
   // Функция расчёта плана - ДОЛЖНА БЫТЬ В НАЧАЛЕ
@@ -711,10 +749,208 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
             <button className="btn-next glass" onClick={() => {
               const err = validateCigarettes()
               if (err) return alert(err)
-              setExtraStep(null)
-              setStep(2)
+              proceedFromExtra('cigarettes')
             }}>Далее</button>
-            <button className="back-btn glass" onClick={() => { setExtraStep(null); setStep(2) }} style={{ marginLeft: 8 }}>Пропустить</button>
+            <button className="back-btn glass" onClick={() => { proceedFromExtra('cigarettes') }} style={{ marginLeft: 8 }}>Пропустить</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Extra: POD / vape detailed block
+  if (extraStep === 'vape' || extraStep === 'pod') {
+    const v = formData.vape || { nicotineType: 'salt', strength: 20, puffs: 200, background: false, inBed: false, unnoticed: false, tasteOverEffect: 'effect' }
+    return (
+      <div className="quit-plan-container">
+        <div className="plan-card glass">
+          <div className="plan-header">
+            <h2>POD / Вейп — уточняющие вопросы</h2>
+            <p>Поможет понять реальное потребление никотина</p>
+          </div>
+
+          <div className="question-group">
+            <label>Тип никотина</label>
+            <select value={v.nicotineType} onChange={(e) => setFormData(prev => ({ ...prev, vape: { ...(prev.vape||{}), nicotineType: e.target.value } }))}>
+              <option value="salt">солевой</option>
+              <option value="regular">обычный</option>
+            </select>
+          </div>
+
+          <div className="question-group">
+            <label>Крепость (мг)</label>
+            <input type="number" min="0" value={v.strength} onChange={(e) => setFormData(prev => ({ ...prev, vape: { ...(prev.vape||{}), strength: parseInt(e.target.value) } }))} />
+          </div>
+
+          <div className="question-group">
+            <label>Приблизительно сколько затяжек в день?</label>
+            <input type="number" min="0" value={v.puffs} onChange={(e) => setFormData(prev => ({ ...prev, vape: { ...(prev.vape||{}), puffs: parseInt(e.target.value) } }))} />
+          </div>
+
+          <div className="question-group">
+            <label>Фоновое парение (почти постоянно)?</label>
+            <select value={v.background ? 'yes' : 'no'} onChange={(e) => setFormData(prev => ({ ...prev, vape: { ...(prev.vape||{}), background: e.target.value === 'yes' } }))}>
+              <option value="no">Нет</option>
+              <option value="yes">Да</option>
+            </select>
+          </div>
+
+          <div className="question-group">
+            <label>Беру ли в кровать?</label>
+            <select value={v.inBed ? 'yes' : 'no'} onChange={(e) => setFormData(prev => ({ ...prev, vape: { ...(prev.vape||{}), inBed: e.target.value === 'yes' } }))}>
+              <option value="no">Нет</option>
+              <option value="yes">Да</option>
+            </select>
+          </div>
+
+          <div className="question-group">
+            <label>Не замечаешь, как долго паришь?</label>
+            <select value={v.unnoticed ? 'yes' : 'no'} onChange={(e) => setFormData(prev => ({ ...prev, vape: { ...(prev.vape||{}), unnoticed: e.target.value === 'yes' } }))}>
+              <option value="no">Нет</option>
+              <option value="yes">Да</option>
+            </select>
+          </div>
+
+          <div className="question-group">
+            <label>Что важнее — вкус или эффект?</label>
+            <select value={v.tasteOverEffect} onChange={(e) => setFormData(prev => ({ ...prev, vape: { ...(prev.vape||{}), tasteOverEffect: e.target.value } }))}>
+              <option value="effect">Эффект</option>
+              <option value="taste">Вкус</option>
+            </select>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <button className="btn-next glass" onClick={() => {
+              const err = validateVape()
+              if (err) return alert(err)
+              proceedFromExtra('vape')
+            }}>Далее</button>
+            <button className="back-btn glass" onClick={() => proceedFromExtra('vape')} style={{ marginLeft: 8 }}>Пропустить</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Extra: IQOS / GLO
+  if (extraStep === 'iqos' || extraStep === 'glo') {
+    const i = formData.iqos || { sticks: 10, consecutive: false, homeMore: false, harmless: false, increasedDependence: false }
+    return (
+      <div className="quit-plan-container">
+        <div className="plan-card glass">
+          <div className="plan-header">
+            <h2>IQOS / GLO — уточняющие вопросы</h2>
+          </div>
+
+          <div className="question-group">
+            <label>Сколько стиков в день?</label>
+            <input type="number" min="0" value={i.sticks} onChange={(e) => setFormData(prev => ({ ...prev, iqos: { ...(prev.iqos||{}), sticks: parseInt(e.target.value) } }))} />
+          </div>
+
+          <div className="question-group">
+            <label>Куришь ли подряд 2–3 стика?</label>
+            <select value={i.consecutive ? 'yes' : 'no'} onChange={(e) => setFormData(prev => ({ ...prev, iqos: { ...(prev.iqos||{}), consecutive: e.target.value === 'yes' } }))}>
+              <option value="no">Нет</option>
+              <option value="yes">Да</option>
+            </select>
+          </div>
+
+          <div className="question-group">
+            <label>Куришь ли дома чаще, чем сигареты раньше?</label>
+            <select value={i.homeMore ? 'yes' : 'no'} onChange={(e) => setFormData(prev => ({ ...prev, iqos: { ...(prev.iqos||{}), homeMore: e.target.value === 'yes' } }))}>
+              <option value="no">Нет</option>
+              <option value="yes">Да</option>
+            </select>
+          </div>
+
+          <div className="question-group">
+            <label>Есть ли ощущение, что это «безвредно»?</label>
+            <select value={i.harmless ? 'yes' : 'no'} onChange={(e) => setFormData(prev => ({ ...prev, iqos: { ...(prev.iqos||{}), harmless: e.target.value === 'yes' } }))}>
+              <option value="no">Нет</option>
+              <option value="yes">Да</option>
+            </select>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <button className="btn-next glass" onClick={() => {
+              const err = validateIqos()
+              if (err) return alert(err)
+              proceedFromExtra('iqos')
+            }}>Далее</button>
+            <button className="back-btn glass" onClick={() => proceedFromExtra('iqos')} style={{ marginLeft: 8 }}>Пропустить</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Extra: Snus
+  if (extraStep === 'snus') {
+    const s = formData.snus || { strength: 6, pouches: 5, keepLong: false, sleepWith: false, irritability: false }
+    return (
+      <div className="quit-plan-container">
+        <div className="plan-card glass">
+          <div className="plan-header"><h2>Снюс / паучи</h2></div>
+          <div className="question-group">
+            <label>Крепость (мг)</label>
+            <input type="number" min="0" value={s.strength} onChange={(e) => setFormData(prev => ({ ...prev, snus: { ...(prev.snus||{}), strength: parseInt(e.target.value) } }))} />
+          </div>
+          <div className="question-group">
+            <label>Сколько паучей в день?</label>
+            <input type="number" min="0" value={s.pouches} onChange={(e) => setFormData(prev => ({ ...prev, snus: { ...(prev.snus||{}), pouches: parseInt(e.target.value) } }))} />
+          </div>
+          <div className="question-group">
+            <label>Держишь ли дольше рекомендованного?</label>
+            <select value={s.keepLong ? 'yes' : 'no'} onChange={(e) => setFormData(prev => ({ ...prev, snus: { ...(prev.snus||{}), keepLong: e.target.value === 'yes' } }))}>
+              <option value="no">Нет</option>
+              <option value="yes">Да</option>
+            </select>
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <button className="btn-next glass" onClick={() => {
+              const err = validateSnus()
+              if (err) return alert(err)
+              proceedFromExtra('snus')
+            }}>Далее</button>
+            <button className="back-btn glass" onClick={() => proceedFromExtra('snus')} style={{ marginLeft: 8 }}>Пропустить</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Extra: Hookah
+  if (extraStep === 'hookah') {
+    const h = formData.hookah || { frequency: 'monthly', alone: false, sessionHours: 1, cravingOutside: false }
+    return (
+      <div className="quit-plan-container">
+        <div className="plan-card glass">
+          <div className="plan-header"><h2>Кальян</h2></div>
+          <div className="question-group">
+            <label>Как часто?</label>
+            <select value={h.frequency} onChange={(e) => setFormData(prev => ({ ...prev, hookah: { ...(prev.hookah||{}), frequency: e.target.value } }))}>
+              <option value="monthly">раз в месяц</option>
+              <option value="weekly">недельно</option>
+              <option value="more">чаще</option>
+            </select>
+          </div>
+          <div className="question-group">
+            <label>Куришь ли один или в компании?</label>
+            <select value={h.alone ? 'alone' : 'group'} onChange={(e) => setFormData(prev => ({ ...prev, hookah: { ...(prev.hookah||{}), alone: e.target.value === 'alone' } }))}>
+              <option value="group">в компании</option>
+              <option value="alone">один</option>
+            </select>
+          </div>
+          <div className="question-group">
+            <label>Затягивается ли сессия на часы?</label>
+            <select value={h.sessionHours > 1 ? 'long' : 'short'} onChange={(e) => setFormData(prev => ({ ...prev, hookah: { ...(prev.hookah||{}), sessionHours: e.target.value === 'long' ? 3 : 1 } }))}>
+              <option value="short">короткая</option>
+              <option value="long">длинная</option>
+            </select>
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <button className="btn-next glass" onClick={() => { const err = validateHookah(); if (err) return alert(err); proceedFromExtra('hookah') }}>Далее</button>
+            <button className="back-btn glass" onClick={() => proceedFromExtra('hookah')} style={{ marginLeft: 8 }}>Пропустить</button>
           </div>
         </div>
       </div>

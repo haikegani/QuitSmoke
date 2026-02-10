@@ -10,21 +10,77 @@
 
 .plan-card {
   background: var(--card-light);
-  border-radius: 16px;
-  padding: 40px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 40px 32px 32px 32px;
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 4px 32px 0 rgba(102,126,234,0.07);
+  transition: box-shadow 0.3s, border 0.3s;
+  position: relative;
+  min-width: 320px;
+  max-width: 480px;
+  margin: 0 auto;
+  animation: fadeInStep 0.5s;
+  z-index: 1;
+}
+
+@keyframes fadeInStep {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 }
 
 .dark-theme .plan-card {
   background: var(--card-dark);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: #222;
+  box-shadow: 0 4px 32px 0 rgba(0,0,0,0.25);
+}
+
+/* Категории — цветовые акценты */
+.plan-card.cigarettes { box-shadow: 0 2px 24px 0 rgba(255, 193, 7, 0.08); border-color: #ffe082; }
+.plan-card.vape { box-shadow: 0 2px 24px 0 rgba(102, 126, 234, 0.13); border-color: #a5b4fc; }
+.plan-card.iqos { box-shadow: 0 2px 24px 0 rgba(255, 152, 0, 0.10); border-color: #ffd180; }
+.plan-card.snus { box-shadow: 0 2px 24px 0 rgba(34, 197, 94, 0.10); border-color: #bbf7d0; }
+.plan-card.hookah { box-shadow: 0 2px 24px 0 rgba(118, 75, 162, 0.10); border-color: #c4b5fd; }
+.dark-theme .plan-card.cigarettes { border-color: #bfae5a; }
+.dark-theme .plan-card.vape { border-color: #667eea; }
+.dark-theme .plan-card.iqos { border-color: #bfae5a; }
+.dark-theme .plan-card.snus { border-color: #22c55e; }
+.dark-theme .plan-card.hookah { border-color: #764ba2; }
 }
 
 .plan-header {
   text-align: center;
   margin-bottom: 32px;
+  padding-bottom: 12px;
+  border-bottom: 1.5px solid #e5e7eb;
+}
+.dark-theme .plan-header {
+  border-bottom: 1.5px solid #333;
+}
+.stepper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+.stepper-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.stepper-dot.active {
+  background: #667eea;
+  box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
+}
+.dark-theme .stepper-dot {
+  background: #333;
+}
+.dark-theme .stepper-dot.active {
+  background: #667eea;
+}
 }
 
 .plan-header h2 {
@@ -195,7 +251,13 @@
 }
 
 .question-group {
-  margin-bottom: 16px;
+  margin-bottom: 22px;
+  padding: 0 0 8px 0;
+  border-bottom: 1px dashed #e5e7eb;
+}
+.dark-theme .question-group {
+  border-bottom: 1px dashed #333;
+}
 }
 
 .question-group label {
@@ -203,6 +265,8 @@
   font-weight: 600;
   margin-bottom: 8px;
   color: var(--text-light);
+  font-size: 15px;
+  letter-spacing: 0.01em;
 }
 
 .dark-theme .question-group label {
@@ -212,19 +276,22 @@
 .question-group input,
 .question-group select {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgba(102, 126, 234, 0.3);
+  padding: 12px 14px;
+  border: 1.5px solid #e5e7eb;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255,255,255,0.95);
   color: var(--text-light);
-  font-size: 14px;
+  font-size: 15px;
   box-sizing: border-box;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  transition: border 0.2s, box-shadow 0.2s;
 }
 
 .dark-theme .question-group input,
 .dark-theme .question-group select {
-  background: rgba(0, 0, 0, 0.2);
-  border-color: rgba(102, 126, 234, 0.4);
+  background: rgba(0,0,0,0.25);
+  border-color: #333;
   color: var(--text-dark);
 }
 
@@ -411,34 +478,46 @@
 }
 
 .btn-next {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: #667eea;
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(102,126,234,0.10);
 }
 
 .btn-next:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 18px rgba(102,126,234,0.18);
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  color: white;
+  background: #22c55e;
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(34,197,94,0.10);
 }
 
 .btn-save:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 18px rgba(34,197,94,0.18);
 }
 
 .back-btn {
-  background: rgba(102, 126, 234, 0.1);
+  background: #f3f4f6;
   color: #667eea;
-  border: 1px solid rgba(102, 126, 234, 0.3);
+  border: 1.5px solid #e5e7eb;
   margin-top: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: none;
 }
 
 .back-btn:hover {
-  background: rgba(102, 126, 234, 0.2);
+  background: #e0e7ff;
+  border-color: #667eea;
 }
 
 /* Plan Summary */
