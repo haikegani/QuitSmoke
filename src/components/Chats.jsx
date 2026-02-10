@@ -486,7 +486,7 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
         ) : (
           isMobile ? (
             // mobile: show chats list (or empty state with start button)
-            <div className="no-chat-selected">
+            <div className="mobile-chats-list">
               {chats && chats.length > 0 ? (
                 <div style={{ width: '100%' }}>
                   {chats.map(chat => (

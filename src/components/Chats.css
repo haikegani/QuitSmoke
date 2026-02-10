@@ -537,3 +537,68 @@
     font-size: 14px;
   }
 }
+
+/* Mobile chats list container (top-aligned) */
+.mobile-chats-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 12px 12px;
+  overflow-y: auto;
+}
+
+/* Dark theme: reduce palette to pure black/white, remove gradients */
+.dark-theme .chats-container,
+.dark-theme .chat-view,
+.dark-theme .chats-sidebar,
+.dark-theme .messages-container,
+.dark-theme .new-chat-panel {
+  background: #000 !important;
+  color: #fff !important;
+}
+
+.dark-theme .chats-header h2,
+.dark-theme .friend-name,
+.dark-theme .chat-name,
+.dark-theme .chat-preview,
+.dark-theme .chat-title,
+.dark-theme .message-text,
+.dark-theme .message-time,
+.dark-theme .empty-chats,
+.dark-theme .empty-friends,
+.dark-theme .no-chat-selected {
+  color: #fff !important;
+}
+
+.dark-theme .friend-avatar,
+.dark-theme .chat-avatar,
+.dark-theme .btn-new-chat,
+.dark-theme .btn-start-chat,
+.dark-theme .btn-send {
+  background: #000 !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,0.08) !important;
+}
+
+.dark-theme .chat-item.active {
+  background: rgba(255,255,255,0.06) !important;
+}
+
+.dark-theme .message.sent .message-content {
+  background: #111 !important;
+  color: #fff !important;
+}
+
+.dark-theme .message.received .message-content {
+  background: #000 !important;
+  color: #fff !important;
+}
+
+.dark-theme .reaction,
+.dark-theme .reaction-btn,
+.dark-theme .btn-new-chat:hover,
+.dark-theme .btn-start-chat:hover,
+.dark-theme .btn-send:hover {
+  opacity: 0.95;
+}
