@@ -77,7 +77,9 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
         }
       })
 
-      setChats(Array.from(map.values()))
+      const arr = Array.from(map.values())
+      setChats(arr)
+      console.log('[CHATS] Загружен список чатов:', arr.length, arr.map(c => c.id))
     } catch (err) {
       console.error('[CHATS] Ошибка при загрузке списка чатов:', err)
     }
@@ -114,6 +116,7 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
       .subscribe()
 
     subscriptionRef.current = subscription
+    console.log('[CHATS] subscriptionRef set')
   }
 
   // При выборе чата - загружаем сообщения
@@ -129,6 +132,10 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
       }
     }
   }, [selectedChat?.id])
+
+  useEffect(() => {
+    console.log('[CHATS] mounted or user changed:', user?.email)
+  }, [user?.email])
 
   // При выборе пользователя из поиска - открываем/создаем чат
   useEffect(() => {
