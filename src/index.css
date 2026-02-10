@@ -92,3 +92,41 @@ input:focus, textarea:focus {
 .dark-theme .muted {
   color: var(--muted-dark);
 }
+
+/* Force strict black/white palette for dark theme */
+.dark-theme {
+  --bg-dark: #000000;
+  --card-dark: #000000;
+  --text-dark: #ffffff;
+  --muted-dark: #ffffff;
+  --accent-dark: #ffffff;
+  --btn-text-dark: #ffffff;
+}
+
+/* Remove gradients and background-images in dark theme to avoid colored accents */
+.dark-theme * {
+  background-image: none !important;
+}
+
+.dark-theme button,
+.dark-theme .friend-avatar,
+.dark-theme .chat-avatar,
+.dark-theme .btn-new-chat,
+.dark-theme .btn-start-chat,
+.dark-theme .btn-send {
+  background: #000 !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,0.08) !important;
+}
+
+.dark-theme .chat-item.active {
+  background: rgba(255,255,255,0.04) !important;
+}
+
+.dark-theme .message.sent .message-content {
+  background: #111 !important;
+}
+
+.dark-theme .message.received .message-content {
+  background: #000 !important;
+}
