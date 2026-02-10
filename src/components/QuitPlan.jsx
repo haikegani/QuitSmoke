@@ -107,6 +107,35 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
   const [calculatedPlan, setCalculatedPlan] = useState(null)
   const [saved, setSaved] = useState(false)
   const [showGeneral, setShowGeneral] = useState(true)
+  const [extraStep, setExtraStep] = useState(null)
+
+  // Load saved intermediate answers from localStorage
+  useEffect(() => {
+    try {
+      const key = `qs_quitplan_${user?.id}`
+      const raw = localStorage.getItem(key)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        setFormData(prev => ({ ...prev, ...parsed }))
+      }
+    } catch (e) {
+      console.warn('No saved quit plan')
+    }
+  }, [user?.id])
+
+  // Autosave intermediate answers
+  useEffect(() => {
+    try {
+      const key = `qs_quitplan_${user?.id}`
+      localStorage.setItem(key, JSON.stringify(formData))
+    } catch (e) {}
+  }, [formData, user?.id])
+
+  const validateCigarettes = () => {
+    const c = formData.cigarettes || {}
+    if (!c.daily || c.daily <= 0) return 'Укажите, сколько сигарет в день'
+    return null
+  }
 
   const product = PRODUCT_TYPES[productType]
 
@@ -306,7 +335,13 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
 
           <button
             className="btn-next glass"
-            onClick={() => setStep(1)}
+            onClick={() => {
+              if ((formData.selectedProducts || []).includes('cigarettes')) {
+                setExtraStep('cigarettes')
+              } else {
+                setStep(2)
+              }
+            }}
             style={{ marginTop: '24px' }}
           >
             Далее →
@@ -354,6 +389,16 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
               <div className="kb-desc">Ответлю на несколько вопросов, вы расчитаете</div>
             </button>
           </div>
+          <div style={{ marginTop: 12 }}>
+            <button className="back-btn glass" onClick={() => {
+              // proceed: if cigarettes selected, open cigarettes extra step
+              if ((formData.selectedProducts || []).includes('cigarettes')) {
+                setExtraStep('cigarettes')
+              } else {
+                setStep(2)
+              }
+            }}>Далее</button>
+          </div>
         </div>
       </div>
     )
@@ -390,7 +435,13 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
 
           <button
             className="btn-next glass"
-            onClick={() => setStep(2)}
+            onClick={() => {
+              if ((formData.selectedProducts || []).includes('cigarettes')) {
+                setExtraStep('cigarettes')
+              } else {
+                setStep(2)
+              }
+            }}
             style={{ marginTop: '24px' }}
           >
             Далее →
@@ -445,6 +496,15 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
           >
             ← Вернуться
           </button>
+          <div style={{ marginTop: 12 }}>
+            <button className="back-btn glass" onClick={() => {
+              if ((formData.selectedProducts || []).includes('cigarettes')) {
+                setExtraStep('cigarettes')
+              } else {
+                setStep(2)
+              }
+            }}>Далее</button>
+          </div>
         </div>
       </div>
     )
@@ -577,6 +637,85 @@ export default function QuitPlan({ user, existingPlan, onSavePlan }) {
           <button className="btn-next glass" onClick={() => setStep(3)}>
             Далее →
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Extra: Cigarettes detailed block
+  if (extraStep === 'cigarettes') {
+    const c = formData.cigarettes || { daily: formData.currentDaily || 20, binge: false, afterMeal: false, night: false, type: 'обычные', autopilot: false, ritual: 'nicotine' }
+    return (
+      <div className="quit-plan-container">
+        <div className="plan-card glass">
+          <div className="plan-header">
+            <h2>Сигареты — уточняющие вопросы</h2>
+            <p>Поможет точнее оценить уровень зависимости</p>
+          </div>
+
+          <div className="question-group">
+            <label>Сколько сигарет в день в среднем?</label>
+            <input type="number" min="1" value={c.daily} onChange={(e) => setFormData(prev => ({ ...prev, cigarettes: { ...(prev.cigarettes||{}), daily: parseInt(e.target.value) } }))} />
+          </div>
+
+          <div className="question-group">
+            <label>Бывают ли «запои» (20+ в день)?</label>
+            <select value={c.binge ? 'yes' : 'no'} onChange={(e) => setFormData(prev => ({ ...prev, cigarettes: { ...(prev.cigarettes||{}), binge: e.target.value === 'yes' } }))}>
+              <option value="no">Нет</option>
+              <option value="yes">Да</option>
+            </select>
+          </div>
+
+          <div className="question-group">
+            <label>Куришь ли сразу после еды?</label>
+            <select value={c.afterMeal ? 'yes' : 'no'} onChange={(e) => setFormData(prev => ({ ...prev, cigarettes: { ...(prev.cigarettes||{}), afterMeal: e.target.value === 'yes' } }))}>
+              <option value="no">Нет</option>
+              <option value="yes">Да</option>
+            </select>
+          </div>
+
+          <div className="question-group">
+            <label>Куришь ли ночью / просыпаешься ради сигареты?</label>
+            <select value={c.night ? 'yes' : 'no'} onChange={(e) => setFormData(prev => ({ ...prev, cigarettes: { ...(prev.cigarettes||{}), night: e.target.value === 'yes' } }))}>
+              <option value="no">Нет</option>
+              <option value="yes">Да</option>
+            </select>
+          </div>
+
+          <div className="question-group">
+            <label>Какие сигареты?</label>
+            <select value={c.type} onChange={(e) => setFormData(prev => ({ ...prev, cigarettes: { ...(prev.cigarettes||{}), type: e.target.value } }))}>
+              <option value="лёгкие">лёгкие</option>
+              <option value="обычные">обычные</option>
+              <option value="крепкие">крепкие</option>
+            </select>
+          </div>
+
+          <div className="question-group">
+            <label>Куришь ли на автомате, не замечая?</label>
+            <select value={c.autopilot ? 'yes' : 'no'} onChange={(e) => setFormData(prev => ({ ...prev, cigarettes: { ...(prev.cigarettes||{}), autopilot: e.target.value === 'yes' } }))}>
+              <option value="no">Нет</option>
+              <option value="yes">Да</option>
+            </select>
+          </div>
+
+          <div className="question-group">
+            <label>Основное удовольствие — никотин или сам ритуал?</label>
+            <select value={c.ritual || 'nicotine'} onChange={(e) => setFormData(prev => ({ ...prev, cigarettes: { ...(prev.cigarettes||{}), ritual: e.target.value } }))}>
+              <option value="nicotine">Никотин</option>
+              <option value="ritual">Ритуал</option>
+            </select>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <button className="btn-next glass" onClick={() => {
+              const err = validateCigarettes()
+              if (err) return alert(err)
+              setExtraStep(null)
+              setStep(2)
+            }}>Далее</button>
+            <button className="back-btn glass" onClick={() => { setExtraStep(null); setStep(2) }} style={{ marginLeft: 8 }}>Пропустить</button>
+          </div>
         </div>
       </div>
     )
