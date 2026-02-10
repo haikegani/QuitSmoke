@@ -105,13 +105,9 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
         },
         (payload) => {
           console.log('[CHATS] Real-time обновление:', payload.eventType)
-          
-          if (payload.eventType === 'INSERT') {
-            setMessages(prev => [...prev, payload.new])
-          } else if (payload.eventType === 'UPDATE') {
-            setMessages(prev =>
-              prev.map(msg => msg.id === payload.new.id ? payload.new : msg)
-            )
+          // При появлении/обновлении сообщения перезагружаем список сообщений
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            loadMessages(chatId)
           }
         }
       )
@@ -185,13 +181,9 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
             // Обновим список чатов
             loadChats()
 
-            // Если сообщение для текущего открытого чата — добавим в UI
+            // Если сообщение для текущего открытого чата — перезагрузим её содержимое
             if (selectedChat && newMsg.chat_id === selectedChat.id) {
-              if (payload.eventType === 'INSERT') {
-                setMessages(prev => [...prev, newMsg])
-              } else if (payload.eventType === 'UPDATE') {
-                setMessages(prev => prev.map(m => m.id === newMsg.id ? newMsg : m))
-              }
+              loadMessages(selectedChat.id)
             }
           }
         }
@@ -372,10 +364,10 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
                 </button>
               ))
           ) : (
-            <div className="empty-chats">
-              <p>Начните чат</p>
-              <button className="btn-start-chat" onClick={() => setShowNewChat(true)}>Начать чат</button>
-            </div>
+              <div className="empty-chats">
+                <p>Начать новый чат</p>
+                <button className="btn-start-chat" onClick={() => setShowNewChat(true)}>Начать чат</button>
+              </div>
           )}
         </div>
       </div>
