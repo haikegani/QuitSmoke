@@ -44,6 +44,45 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
     }
   }
 
+  // Загружаем список чатов (по последним сообщениям)
+  const loadChats = async () => {
+    if (!user?.email) return
+
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`sender_email.eq.${user.email},receiver_email.eq.${user.email}`)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.warn('[CHATS] Не удалось загрузить сообщения для списка чатов', error)
+        return
+      }
+
+      // Берём по каждому chat_id самое последнее сообщение
+      const map = new Map()
+      ;(data || []).forEach(msg => {
+        if (!map.has(msg.chat_id)) {
+          const otherEmail = msg.sender_email === user.email ? msg.receiver_email : msg.sender_email
+          const otherName = msg.sender_username || otherEmail.split('@')[0]
+          map.set(msg.chat_id, {
+            id: msg.chat_id,
+            lastMessage: msg.text,
+            lastAt: msg.created_at,
+            participants: [user.email, otherEmail],
+            participantIds: [msg.sender_id, msg.receiver_id],
+            participantNames: [user.username || user.email.split('@')[0], otherName]
+          })
+        }
+      })
+
+      setChats(Array.from(map.values()))
+    } catch (err) {
+      console.error('[CHATS] Ошибка при загрузке списка чатов:', err)
+    }
+  }
+
   // Подписываемся на real-time обновления сообщений
   const subscribeToMessages = (chatId) => {
     if (!chatId) return
@@ -124,6 +163,46 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
     scrollToBottom()
   }, [messages])
 
+  // Загружаем список чатов при старте и при изменениях сообщений
+  useEffect(() => {
+    loadChats()
+  }, [user?.email])
+
+  // Глобальная подписка для обновления списка чатов при входящих/исходящих сообщениях
+  useEffect(() => {
+    if (!user?.email) return
+
+    const channel = supabase
+      .channel('messages:global')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages' },
+        (payload) => {
+          const newMsg = payload.new
+          if (!newMsg) return
+
+          if (newMsg.sender_email === user.email || newMsg.receiver_email === user.email) {
+            // Обновим список чатов
+            loadChats()
+
+            // Если сообщение для текущего открытого чата — добавим в UI
+            if (selectedChat && newMsg.chat_id === selectedChat.id) {
+              if (payload.eventType === 'INSERT') {
+                setMessages(prev => [...prev, newMsg])
+              } else if (payload.eventType === 'UPDATE') {
+                setMessages(prev => prev.map(m => m.id === newMsg.id ? newMsg : m))
+              }
+            }
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      try { supabase.removeChannel(channel) } catch (e) {}
+    }
+  }, [user?.email, selectedChat?.id])
+
   // Отправляем сообщение в Supabase
   const sendMessage = async () => {
     if (!messageText.trim() || !selectedChat) return
@@ -136,7 +215,7 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
 
       console.log('[CHATS] Отправляем сообщение в', receiverEmail)
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('messages')
         .insert({
           chat_id: selectedChat.id,
@@ -150,6 +229,14 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
         })
 
       if (error) throw error
+
+      // Оптимистично добавляем сообщение в UI (inserted может быть массивой)
+      const newMsg = Array.isArray(inserted) ? inserted[0] : inserted
+      if (newMsg) {
+        setMessages(prev => [...prev, newMsg])
+        // Обновим список чатов, чтобы новый чат появился сразу
+        loadChats()
+      }
 
       console.log('✓ Сообщение отправлено')
       setMessageText('')
@@ -255,30 +342,39 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
         </div>
 
         <div className="chats-list">
-          {messages.length > 0 && selectedChat && (
-            <button
-              className={`chat-item active`}
-              onClick={() => {}}
-            >
-              <div className="chat-avatar" style={{ background: '#667eea' }}>
-                {selectedChat.participantNames[1]?.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="chat-info">
-                <div className="chat-name">
-                  {selectedChat.participantNames[1]}
-                </div>
-                <div className="chat-preview">
-                  {messages.length > 0
-                    ? messages[messages.length - 1].text.slice(0, 30) + (messages[messages.length - 1].text.length > 30 ? '...' : '')
-                    : 'Нет сообщений'}
-                </div>
-              </div>
-            </button>
-          )}
-
-          {messages.length === 0 && selectedChat && (
+          {chats && chats.length > 0 ? (
+            chats
+              .filter(c => {
+                if (!searchTerm) return true
+                return c.participantNames[1]?.toLowerCase().includes(searchTerm.toLowerCase()) || (c.lastMessage || '').toLowerCase().includes(searchTerm.toLowerCase())
+              })
+              .map(chat => (
+                <button
+                  key={chat.id}
+                  className={`chat-item ${selectedChat?.id === chat.id ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedChat({
+                      id: chat.id,
+                      participants: chat.participants,
+                      participantIds: chat.participantIds,
+                      participantNames: chat.participantNames
+                    })
+                    setShowNewChat(false)
+                  }}
+                >
+                  <div className="chat-avatar" style={{ background: '#667eea' }}>
+                    {chat.participantNames[1]?.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="chat-info">
+                    <div className="chat-name">{chat.participantNames[1]}</div>
+                    <div className="chat-preview">{chat.lastMessage ? (chat.lastMessage.slice(0, 30) + (chat.lastMessage.length > 30 ? '...' : '')) : 'Нет сообщений'}</div>
+                  </div>
+                </button>
+              ))
+          ) : (
             <div className="empty-chats">
-              <p>Начни беседу</p>
+              <p>Начните чат</p>
+              <button className="btn-start-chat" onClick={() => setShowNewChat(true)}>Начать чат</button>
             </div>
           )}
         </div>
@@ -361,6 +457,33 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
           <div className="no-chat-selected">
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>💬</div>
             <p>Выберите пользователя или начните новый чат</p>
+            <button className="btn-start-chat" onClick={() => setShowNewChat(true)} style={{ marginTop: 12 }}>Начать чат</button>
+
+            {showNewChat && (
+              <div className="new-chat-panel" style={{ marginTop: 16, width: '100%' }}>
+                <div className="new-chat-label">Выберите пользователя</div>
+                <div className="friends-list">
+                  {friends && friends.length > 0 ? (
+                    friends.map(friend => (
+                      <button
+                        key={friend.id}
+                        className={`friend-item ${selectedFriend?.id === friend.id ? 'selected' : ''}`}
+                        onClick={() => startNewChat(friend)}
+                      >
+                        <div className="friend-avatar" style={{ background: friend.avatarColor }}>
+                          {(friend.name || friend.username || friend.email).slice(0, 2).toUpperCase()
+                        }</div>
+                        <div className="friend-name">{friend.name || friend.username || friend.email}</div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="empty-friends">
+                      <p>Загружаем пользователей...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
