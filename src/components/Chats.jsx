@@ -52,7 +52,7 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
       const { data, error } = await supabase
         .from('messages')
         .select('*')
-        .or(`sender_email.eq.${user.email},receiver_email.eq.${user.email}`)
+        .or(`(sender_email.eq.${user.email},receiver_email.eq.${user.email})`)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -145,6 +145,11 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
       }
 
       setSelectedChat(newChat)
+      // Добавим чат в список сразу, если его ещё нет
+      setChats(prev => {
+        if (prev.find(c => c.id === newChat.id)) return prev
+        return [newChat, ...prev]
+      })
       setShowNewChat(false)
       setSelectedFriend(null)
       onChatOpened?.()
@@ -222,13 +227,9 @@ export default function Chats({ user, friends, selectedChatUser, onChatOpened })
 
       if (error) throw error
 
-      // Оптимистично добавляем сообщение в UI (inserted может быть массивой)
-      const newMsg = Array.isArray(inserted) ? inserted[0] : inserted
-      if (newMsg) {
-        setMessages(prev => [...prev, newMsg])
-        // Обновим список чатов, чтобы новый чат появился сразу
-        loadChats()
-      }
+      // Обновляем сообщения и список чатов из базы (надёжно показать сразу)
+      try { await loadMessages(selectedChat.id) } catch (e) {}
+      try { await loadChats() } catch (e) {}
 
       console.log('✓ Сообщение отправлено')
       setMessageText('')
